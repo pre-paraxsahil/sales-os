@@ -1,0 +1,1222 @@
+// Prisma Schema for BroStartup Sales OS
+// BUILD 02: Full Single-User Sales Operating System Database Foundation
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum UserRole {
+  OWNER
+  ADMIN
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  UNQUALIFIED
+  PROPOSAL_SENT
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum LeadTemperature {
+  COLD
+  WARM
+  HOT
+}
+
+enum OpportunityStage {
+  DISCOVERY
+  DEMO_SCHEDULED
+  DEMO_COMPLETED
+  PROPOSAL
+  CLOSING
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum SaleStatus {
+  PENDING
+  COMPLETED
+  REFUNDED
+  CANCELLED
+}
+
+enum CallType {
+  OUTBOUND
+  INBOUND
+  FOLLOW_UP
+  DISCOVERY
+  NEW_ENQUIRY
+  COLD_CALL
+  INTERESTED_LEAD
+  HOT_LEAD
+  CLOSING_CALL
+  CALLBACK
+}
+
+enum CallOutcome {
+  CONNECTED
+  NO_ANSWER
+  BUSY
+  VOICEMAIL
+  SCHEDULED_DEMO
+  NOT_INTERESTED
+  WRONG_NUMBER
+  INTERESTED
+  DEMO_BOOKED
+  FOLLOW_UP_REQUIRED
+  SWITCHED_OFF
+  OTHER
+}
+
+enum DemoStatus {
+  SCHEDULED
+  COMPLETED
+  RESCHEDULED
+  CANCELLED
+  NO_SHOW
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DEFERRED
+  CANCELLED
+}
+
+enum FollowUpType {
+  CALL
+  WHATSAPP
+  EMAIL
+  MEETING
+  OTHER
+}
+
+enum FollowUpStatus {
+  PENDING
+  COMPLETED
+  OVERDUE
+  CANCELLED
+}
+
+enum ScheduleBlockType {
+  CALLING
+  FOLLOW_UP
+  DEMO
+  CLOSING
+  CALLBACK
+  ADMIN
+  PLANNING
+  REPORT
+  BREAK
+  LUNCH
+  CUSTOM
+  CALL_WINDOW
+  DEMO_SLOT
+  DEEP_WORK
+  PERSONAL
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum WhatsAppMessageType {
+  TEXT
+  TEMPLATE
+  IMAGE
+  DOCUMENT
+  AUDIO
+}
+
+enum WhatsAppMessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  COMPLETED
+  PAUSED
+  CANCELLED
+}
+
+enum AudienceStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  OPTED_OUT
+}
+
+enum VerificationState {
+  CONFIRMED
+  INFERRED
+  UNKNOWN
+  REJECTED
+}
+
+enum MemoryCategory {
+  BUSINESS
+  CONTACT
+  REQUIREMENT
+  PAIN_POINT
+  CURRENT_PROCESS
+  GOAL
+  DECISION_MAKER
+  TEAM
+  TIMELINE
+  BUDGET
+  PACKAGE
+  OBJECTION
+  BUYING_SIGNAL
+  COMPETITOR
+  PROMISE
+  NEXT_ACTION
+  GENERAL_CONTEXT
+}
+
+enum MemorySourceType {
+  CALL
+  DEMO
+  WHATSAPP
+  NOTE
+  LEAD
+  SALE
+  QUOTATION
+  MANUAL
+}
+
+
+enum RecommendationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum TargetPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum ActivityType {
+  LEAD_CREATED
+  CALL_LOGGED
+  DEMO_SCHEDULED
+  DEMO_COMPLETED
+  NOTE_ADDED
+  TASK_COMPLETED
+  FOLLOW_UP_SET
+  WHATSAPP_SENT
+  SALE_RECORDED
+  STAGE_CHANGED
+}
+
+enum ImportStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum ExportStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum BackupStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum ProductAvailability {
+  AVAILABLE
+  COMING_SOON
+  DEPRECATED
+  ARCHIVED
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+  ONE_TIME
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+
+// ==========================================
+// 1. CORE DOMAIN
+// ==========================================
+
+model User {
+  id            String      @id @default(uuid())
+  email         String      @unique
+  name          String
+  phone         String?
+  role          UserRole    @default(OWNER)
+  status        UserStatus  @default(ACTIVE)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  userSetting   UserSetting?
+  leads         Lead[]
+  sales         Sale[]
+  calls         Call[]
+  demos         Demo[]
+  notes         Note[]
+  activities    Activity[]
+  tasks         Task[]
+  followUps     FollowUp[]
+  reminders     Reminder[]
+  scheduleBlocks ScheduleBlock[]
+  targets       Target[]
+  dailyReports  DailyReport[]
+  weeklyReports WeeklyReport[]
+  callingStats  CallingTimeStat[]
+  notifications Notification[]
+  imports       Import[]
+  exports       Export[]
+  auditEvents   AuditEvent[]
+
+  @@index([email])
+}
+
+model Business {
+  id          String    @id @default(uuid())
+  name        String
+  industry    String?
+  website     String?
+  address     String?
+  city        String?
+  state       String?
+  country     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  contacts    Contact[]
+  leads       Lead[]
+
+  @@index([name])
+}
+
+model Contact {
+  id          String    @id @default(uuid())
+  businessId  String?
+  name        String
+  email       String?
+  phone       String?
+  designation String?
+  isPrimary   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  business    Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  leads       Lead[]
+  calls       Call[]
+  demos       Demo[]
+
+  @@index([phone])
+  @@index([email])
+}
+
+model Lead {
+  id             String          @id @default(uuid())
+  userId         String?
+  businessId     String?
+  contactId      String?
+  title          String
+  source         String?
+  status         LeadStatus      @default(NEW)
+  temperature    LeadTemperature @default(COLD)
+  scoreValue     Float?
+  nextActionDate DateTime?
+  estimatedValue Decimal?        @db.Decimal(12, 2)
+  currency       String          @default("INR")
+  notes          String?
+  occurredAt     DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  user           User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  business       Business?       @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  contact        Contact?        @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  opportunities  Opportunity[]
+  sales          Sale[]
+  calls          Call[]
+  demos          Demo[]
+  notesList      Note[]
+  activities     Activity[]
+  tasks          Task[]
+  followUps      FollowUp[]
+  whatsAppMsgs   WhatsAppMessage[]
+  campaignAudience CampaignAudience[]
+  quotations     Quotation[]
+  leadScore      LeadScore?
+  aiAnalyses     AIAnalysis[]
+  aiInsights     AIInsight[]
+  memories       CustomerMemory[]
+  aiRecommendations AIRecommendation[]
+  scheduleBlocks ScheduleBlock[]
+  reminders      Reminder[]
+
+  @@index([title, source, status])
+  @@index([status])
+  @@index([temperature])
+  @@index([nextActionDate])
+}
+
+model Opportunity {
+  id               String           @id @default(uuid())
+  leadId           String
+  title            String
+  stage            OpportunityStage @default(DISCOVERY)
+  amount           Decimal?         @db.Decimal(12, 2)
+  confidence       Float?
+  expectedCloseDate DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  lead             Lead             @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  sales            Sale[]
+  quotations       Quotation[]
+
+  @@index([leadId])
+  @@index([stage])
+}
+
+model Sale {
+  id            String      @id @default(uuid())
+  userId        String?
+  leadId        String?
+  opportunityId String?
+  quotationId   String?
+  amount        Decimal     @db.Decimal(12, 2)
+  currency      String      @default("INR")
+  status        SaleStatus  @default(COMPLETED)
+  closedAt      DateTime    @default(now())
+  occurredAt    DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  lead          Lead?       @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  quotation     Quotation?  @relation(fields: [quotationId], references: [id], onDelete: SetNull)
+
+  @@index([closedAt])
+  @@index([leadId])
+}
+
+
+// ==========================================
+// 2. SALES ACTIVITY DOMAIN
+// ==========================================
+
+model Call {
+  id              String       @id @default(uuid())
+  userId          String?
+  leadId          String?
+  contactId       String?
+  callType        CallType     @default(OUTBOUND)
+  outcome         CallOutcome  @default(CONNECTED)
+  durationSeconds Int?
+  notes           String?
+  scheduledAt     DateTime?
+  occurredAt      DateTime?    @default(now())
+  startedAt       DateTime?
+  endedAt         DateTime?
+  nextAction      String?
+  nextActionAt    DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  user            User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  lead            Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  contact         Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  recording       CallRecording?
+  transcripts     Transcript[]
+  aiAnalyses      AIAnalysis[]
+
+  @@index([occurredAt])
+  @@index([leadId])
+}
+
+model CallRecording {
+  id              String   @id @default(uuid())
+  callId          String   @unique
+  storageProvider String   @default("S3")
+  storageKey      String
+  fileUrl         String
+  durationSeconds Int?
+  mimeType        String?  @default("audio/mp3")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  call            Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+}
+
+model Transcript {
+  id              String   @id @default(uuid())
+  callId          String
+  language        String?  @default("en")
+  content         String   @db.Text
+  summary         String?  @db.Text
+  confidenceScore Float?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  call            Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([callId])
+}
+
+model Demo {
+  id              String     @id @default(uuid())
+  userId          String?
+  leadId          String?
+  contactId       String?
+  status          DemoStatus @default(SCHEDULED)
+  outcome         String?
+  scheduledAt     DateTime
+  durationMinutes Int?       @default(30)
+  meetingUrl      String?
+  notes           String?
+  nextAction      String?
+  nextActionAt    DateTime?
+  occurredAt      DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  user            User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  lead            Lead?      @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  contact         Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  demoPlan        DemoPlan?
+
+  @@index([scheduledAt])
+  @@index([leadId])
+}
+
+model DemoPlan {
+  id              String   @id @default(uuid())
+  demoId          String   @unique
+  version         Int      @default(1)
+  objectives      String   @db.Text
+  targetFeatures  String?  @db.Text
+  customizedNotes String?  @db.Text
+  planJson        String?  @db.Text
+  confidence      Float?
+  model           String?
+  stepsTracking   String?  @db.Text
+  versionHistory  String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  demo            Demo     @relation(fields: [demoId], references: [id], onDelete: Cascade)
+}
+
+model Note {
+  id        String   @id @default(uuid())
+  userId    String?
+  leadId    String?
+  title     String?
+  content   String   @db.Text
+  category  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  lead      Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([leadId])
+}
+
+model Activity {
+  id          String       @id @default(uuid())
+  userId      String?
+  leadId      String?
+  type        ActivityType
+  title       String
+  description String?
+  metadata    String?      @db.Text
+  occurredAt  DateTime     @default(now())
+  createdAt   DateTime     @default(now())
+
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  lead        Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([occurredAt])
+  @@index([leadId])
+}
+
+
+// ==========================================
+// 3. WORKFLOW DOMAIN
+// ==========================================
+
+model Task {
+  id          String       @id @default(uuid())
+  userId      String?
+  leadId      String?
+  title       String
+  description String?
+  priority    TaskPriority @default(MEDIUM)
+  status      TaskStatus   @default(PENDING)
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  lead        Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([dueDate])
+  @@index([status])
+  @@index([leadId])
+}
+
+model FollowUp {
+  id          String         @id @default(uuid())
+  userId      String?
+  leadId      String?
+  type        FollowUpType   @default(CALL)
+  status      FollowUpStatus @default(PENDING)
+  scheduledAt DateTime
+  completedAt DateTime?
+  notes       String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  lead        Lead?          @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([scheduledAt])
+  @@index([status])
+  @@index([leadId])
+}
+
+model Reminder {
+  id           String    @id @default(uuid())
+  userId       String?
+  leadId       String?
+  title        String
+  message      String?
+  level        String    @default("NORMAL")
+  type         String    @default("GENERAL")
+  entityId     String?
+  entityType   String?
+  remindAt     DateTime
+  isRead       Boolean   @default(false)
+  snoozedUntil DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  lead         Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([remindAt])
+  @@index([leadId])
+}
+
+model ScheduleBlock {
+  id           String            @id @default(uuid())
+  userId       String?
+  leadId       String?
+  title        String
+  blockType    ScheduleBlockType @default(CALLING)
+  startTime    DateTime
+  endTime      DateTime
+  isProtected  Boolean           @default(false)
+  priority     String?           @default("MEDIUM")
+  status       String?           @default("ACTIVE")
+  activityType String?
+  notes        String?
+  metadata     String?           @db.Text
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  user         User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  lead         Lead?             @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([startTime, endTime])
+  @@index([leadId])
+}
+
+
+// ==========================================
+// 4. WHATSAPP DOMAIN
+// ==========================================
+
+model WhatsAppMessage {
+  id             String                @id @default(uuid())
+  leadId         String?
+  phone          String
+  direction      MessageDirection      @default(OUTBOUND)
+  messageType    WhatsAppMessageType   @default(TEXT)
+  category       String?
+  content        String                @db.Text
+  mediaUrl       String?
+  status         WhatsAppMessageStatus @default(SENT)
+  responseStatus String?               @default("UNKNOWN")
+  responseAt     DateTime?
+  metadata       String?               @db.Text
+  sentAt         DateTime?             @default(now())
+  deliveredAt    DateTime?
+  readAt         DateTime?
+  createdAt      DateTime              @default(now())
+
+  lead           Lead?                 @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([phone])
+  @@index([leadId])
+}
+
+model WhatsAppTemplate {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  category    String   @default("UTILITY")
+  language    String   @default("en")
+  content     String   @db.Text
+  variables   String?  @db.Text
+  isApproved  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  tags        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Campaign {
+  id              String             @id @default(uuid())
+  name            String
+  description     String?
+  objective       String?
+  category        String?
+  messageBody     String?            @db.Text
+  cta             String?
+  plannedTiming   String?
+  followUpPlan    String?            @db.Text
+  segmentFilters  String?            @db.Text
+  status          CampaignStatus     @default(DRAFT)
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  totalRecipients Int                @default(0)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  audiences       CampaignAudience[]
+}
+
+model CampaignAudience {
+  id         String         @id @default(uuid())
+  campaignId String
+  leadId     String?
+  phone      String
+  status     AudienceStatus @default(PENDING)
+  sentAt     DateTime?
+  createdAt  DateTime       @default(now())
+
+  campaign   Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  lead       Lead?          @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId])
+  @@index([phone])
+}
+
+
+// ==========================================
+// 5. AI DOMAIN
+// ==========================================
+
+model AIAnalysis {
+  id              String            @id @default(uuid())
+  leadId          String?
+  callId          String?
+  analysisType    String
+  model           String?
+  result          String            @db.Text
+  confidenceState VerificationState @default(UNKNOWN)
+  confidence      Float?
+  status          String            @default("COMPLETED")
+  inputSummary    String?           @db.Text
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt @default(now())
+
+  lead            Lead?             @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  call            Call?             @relation(fields: [callId], references: [id], onDelete: SetNull)
+
+  @@index([leadId])
+  @@index([callId])
+}
+
+model AIInsight {
+  id              String            @id @default(uuid())
+  leadId          String?
+  title           String
+  insightText     String            @db.Text
+  category        String?
+  confidenceState VerificationState @default(INFERRED)
+  createdAt       DateTime          @default(now())
+
+  lead            Lead?             @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([leadId])
+}
+
+model LeadScore {
+  id              String            @id @default(uuid())
+  leadId          String            @unique
+  score           Float
+  factors         String?           @db.Text
+  verificationState VerificationState @default(INFERRED)
+  updatedAt       DateTime          @updatedAt
+
+  lead            Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+model CustomerMemory {
+  id                String            @id @default(uuid())
+  leadId            String
+  category          MemoryCategory    @default(GENERAL_CONTEXT)
+  key               String
+  value             String            @db.Text
+  verificationState VerificationState @default(CONFIRMED)
+  sourceType        MemorySourceType  @default(MANUAL)
+  sourceActivityId  String?
+  confidence        Float?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  lead              Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, key])
+  @@index([leadId, category])
+  @@index([leadId, verificationState])
+}
+
+model AIRecommendation {
+  id              String               @id @default(uuid())
+  leadId          String?
+  prompt          String?              @db.Text
+  actionType      String
+  recommendationText String           @db.Text
+  status          RecommendationStatus @default(PENDING)
+  verificationState VerificationState  @default(INFERRED)
+  createdAt       DateTime             @default(now())
+
+  lead            Lead?                @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([leadId])
+}
+
+
+// ==========================================
+// 6. PERFORMANCE DOMAIN
+// ==========================================
+
+model Target {
+  id           String       @id @default(uuid())
+  userId       String?
+  period       TargetPeriod @default(MONTHLY)
+  startDate    DateTime
+  endDate      DateTime
+  targetAmount Decimal      @db.Decimal(12, 2)
+  targetCalls  Int          @default(0)
+  targetDemos  Int          @default(0)
+  targetSales  Int          @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model DailyReport {
+  id              String   @id @default(uuid())
+  userId          String?
+  reportDate      DateTime
+  totalCalls      Int      @default(0)
+  totalDemos      Int      @default(0)
+  totalFollowUps  Int      @default(0)
+  totalSalesAmount Decimal @default(0) @db.Decimal(12, 2)
+  rawData         String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, reportDate])
+}
+
+model WeeklyReport {
+  id              String   @id @default(uuid())
+  userId          String?
+  weekStartDate   DateTime
+  weekEndDate     DateTime
+  totalCalls      Int      @default(0)
+  totalDemos      Int      @default(0)
+  totalSalesAmount Decimal @default(0) @db.Decimal(12, 2)
+  rawData         String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, weekStartDate])
+}
+
+model CallingTimeStat {
+  id              String   @id @default(uuid())
+  userId          String?
+  dayOfWeek       Int
+  hourOfDay       Int
+  callCount       Int      @default(0)
+  connectCount    Int      @default(0)
+  conversionCount Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+
+// ==========================================
+// 7. SYSTEM DOMAIN
+// ==========================================
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String?
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead])
+}
+
+model Import {
+  id          String       @id @default(uuid())
+  userId      String?
+  fileName    String
+  recordCount Int          @default(0)
+  status      ImportStatus @default(PENDING)
+  errors      String?      @db.Text
+  createdAt   DateTime     @default(now())
+
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model Export {
+  id         String       @id @default(uuid())
+  userId     String?
+  exportType String
+  fileUrl    String?
+  status     ExportStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+
+  user       User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  details    String?  @db.Text
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+}
+
+model UsageRecord {
+  id         String   @id @default(uuid())
+  metric     String
+  value      Float
+  recordedAt DateTime @default(now())
+  metadata   String?  @db.Text
+}
+
+model BackupRecord {
+  id          String       @id @default(uuid())
+  fileName    String
+  fileUrl     String?
+  status      BackupStatus @default(PENDING)
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+}
+
+model UserSetting {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  theme       String   @default("dark")
+  preferences String?  @db.Text
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+
+// ==========================================
+// 8. PRODUCT KNOWLEDGE DOMAIN
+// ==========================================
+
+model ProductOffering {
+  id          String              @id @default(uuid())
+  name        String
+  code        String              @unique
+  description String?             @db.Text
+  availability ProductAvailability @default(AVAILABLE)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  plans       Plan[]
+  addons      Addon[]
+  claims      ProductClaim[]
+}
+
+model Plan {
+  id                String              @id @default(uuid())
+  productOfferingId String
+  name              String
+  code              String
+  description       String?             @db.Text
+  isPublic          Boolean             @default(true)
+  availability      ProductAvailability @default(AVAILABLE)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  productOffering   ProductOffering     @relation(fields: [productOfferingId], references: [id], onDelete: Cascade)
+
+  prices            PlanPrice[]
+  limits            PlanLimit[]
+  features          PlanFeature[]
+  quotationItems    QuotationItem[]
+
+  @@unique([productOfferingId, code])
+}
+
+model PlanPrice {
+  id           String       @id @default(uuid())
+  planId       String
+  billingCycle BillingCycle @default(MONTHLY)
+  price        Decimal      @db.Decimal(12, 2)
+  currency     String       @default("INR")
+  validFrom    DateTime     @default(now())
+  validUntil   DateTime?
+  createdAt    DateTime     @default(now())
+
+  plan         Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, validFrom])
+}
+
+model PlanLimit {
+  id        String   @id @default(uuid())
+  planId    String
+  key       String
+  value     String
+  unit      String?
+  createdAt DateTime @default(now())
+
+  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+}
+
+model Feature {
+  id               String             @id @default(uuid())
+  name             String
+  code             String             @unique
+  description      String?            @db.Text
+  category         String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  planFeatures     PlanFeature[]
+  capabilities     FeatureCapability[]
+  industryFeatures IndustryFeature[]
+}
+
+model PlanFeature {
+  id         String   @id @default(uuid())
+  planId     String
+  featureId  String
+  isIncluded Boolean  @default(true)
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  plan       Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  feature    Feature  @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, featureId])
+}
+
+model FeatureCapability {
+  id             String   @id @default(uuid())
+  featureId      String
+  capabilityName String
+  description    String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  feature        Feature  @relation(fields: [featureId], references: [id], onDelete: Cascade)
+}
+
+model Addon {
+  id                String              @id @default(uuid())
+  productOfferingId String?
+  name              String
+  code              String              @unique
+  description       String?             @db.Text
+  availability      ProductAvailability @default(AVAILABLE)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  productOffering   ProductOffering?    @relation(fields: [productOfferingId], references: [id], onDelete: SetNull)
+
+  prices            AddonPrice[]
+  quotationItems    QuotationItem[]
+}
+
+model AddonPrice {
+  id         String   @id @default(uuid())
+  addonId    String
+  price      Decimal  @db.Decimal(12, 2)
+  currency   String   @default("INR")
+  validFrom  DateTime @default(now())
+  validUntil DateTime?
+  createdAt  DateTime @default(now())
+
+  addon      Addon    @relation(fields: [addonId], references: [id], onDelete: Cascade)
+}
+
+model Industry {
+  id          String            @id @default(uuid())
+  name        String
+  code        String            @unique
+  description String?           @db.Text
+  createdAt   DateTime          @default(now())
+
+  features    IndustryFeature[]
+}
+
+model IndustryFeature {
+  id             String   @id @default(uuid())
+  industryId     String
+  featureId      String
+  relevanceScore Float?
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  industry       Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+  feature        Feature  @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@unique([industryId, featureId])
+}
+
+model ProductClaim {
+  id                 String          @id @default(uuid())
+  productOfferingId  String
+  claimText          String          @db.Text
+  category           String?
+  verificationSource String?
+  createdAt          DateTime        @default(now())
+
+  productOffering    ProductOffering @relation(fields: [productOfferingId], references: [id], onDelete: Cascade)
+}
+
+
+// ==========================================
+// 9. QUOTATION DOMAIN
+// ==========================================
+
+model Quotation {
+  id              String          @id @default(uuid())
+  leadId          String?
+  opportunityId   String?
+  quotationNumber String          @unique
+  status          QuotationStatus @default(DRAFT)
+  totalAmount     Decimal         @db.Decimal(12, 2)
+  currency        String          @default("INR")
+  validUntil      DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  lead            Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  opportunity     Opportunity?    @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+
+  items           QuotationItem[]
+  sales           Sale[]
+
+  @@index([quotationNumber])
+}
+
+model QuotationItem {
+  id          String    @id @default(uuid())
+  quotationId String
+  planId      String?
+  addonId     String?
+  description String
+  unitPrice   Decimal   @db.Decimal(12, 2)
+  quantity    Int       @default(1)
+  discount    Decimal?  @default(0) @db.Decimal(12, 2)
+  totalPrice  Decimal   @db.Decimal(12, 2)
+  createdAt   DateTime  @default(now())
+
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  plan        Plan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
+  addon       Addon?    @relation(fields: [addonId], references: [id], onDelete: SetNull)
+}

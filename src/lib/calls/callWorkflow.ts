@@ -1,0 +1,226 @@
+import { prisma } from '@/lib/prisma';
+import { SaveCallInput } from '@/lib/validations/call';
+import { LeadStatus, LeadTemperature } from '@prisma/client';
+
+export interface CallWorkflowResult {
+  call: any;
+  lead: any;
+  followUp: any | null;
+  activity: any;
+}
+
+export async function executePostCallWorkflow(
+  leadId: string,
+  input: SaveCallInput
+): Promise<CallWorkflowResult> {
+  const {
+    callType = 'OUTBOUND',
+    outcome,
+    durationSeconds = null,
+    startedAt = null,
+    endedAt = null,
+    notes = null,
+    nextAction = null,
+    nextActionAt = null,
+    temperature = null,
+  } = input;
+
+  return await prisma.$transaction(async (tx) => {
+    // 1. Fetch current lead
+    const currentLead = await tx.lead.findUnique({
+      where: { id: leadId },
+      include: { contact: true, business: true },
+    });
+
+    if (!currentLead) {
+      throw new Error(`Lead with ID ${leadId} not found.`);
+    }
+
+    // 2. Determine conservative Stage and Temperature updates
+    let updatedStatus: LeadStatus = currentLead.status;
+    let updatedTemperature: LeadTemperature = currentLead.temperature;
+
+    // Manual override takes precedence if James explicitly chose a temperature
+    if (temperature) {
+      updatedTemperature = temperature;
+    } else {
+      // Conservative automatic temperature adjustments based on outcome
+      if (outcome === 'INTERESTED' || outcome === 'DEMO_BOOKED') {
+        if (currentLead.temperature === 'COLD') {
+          updatedTemperature = 'WARM';
+        }
+      } else if (callType === 'HOT_LEAD' || outcome === 'SCHEDULED_DEMO') {
+        updatedTemperature = 'HOT';
+      } else if (outcome === 'NOT_INTERESTED') {
+        updatedTemperature = 'COLD';
+      }
+    }
+
+    // Conservative stage progression
+    if (outcome === 'DEMO_BOOKED' || outcome === 'SCHEDULED_DEMO') {
+      if (currentLead.status === 'NEW' || currentLead.status === 'CONTACTED') {
+        updatedStatus = 'QUALIFIED';
+      }
+    } else if (outcome === 'CONNECTED' || outcome === 'INTERESTED') {
+      if (currentLead.status === 'NEW') {
+        updatedStatus = 'CONTACTED';
+      }
+    } else if (outcome === 'NOT_INTERESTED') {
+      if (currentLead.status === 'NEW' || currentLead.status === 'CONTACTED') {
+        updatedStatus = 'UNQUALIFIED';
+      }
+    }
+
+    // Parse next action date if provided
+    const parsedNextActionAt = nextActionAt ? new Date(nextActionAt) : null;
+
+    // 3. Create Call record (preserving original notes)
+    const call = await tx.call.create({
+      data: {
+        leadId,
+        userId: currentLead.userId,
+        contactId: currentLead.contactId,
+        callType,
+        outcome,
+        durationSeconds: durationSeconds ? Number(durationSeconds) : null,
+        notes: notes ? notes.trim() : null,
+        startedAt: startedAt ? new Date(startedAt) : null,
+        endedAt: endedAt ? new Date(endedAt) : null,
+        nextAction: nextAction ? nextAction.trim() : null,
+        nextActionAt: parsedNextActionAt,
+        occurredAt: startedAt ? new Date(startedAt) : new Date(),
+      },
+    });
+
+    // 4. Create Timeline Activity event
+    const outcomeLabel = outcome.replace(/_/g, ' ');
+    const activity = await tx.activity.create({
+      data: {
+        userId: currentLead.userId,
+        leadId,
+        type: 'CALL_LOGGED',
+        title: `Call Logged: ${outcomeLabel}`,
+        description: notes
+          ? `[${callType}] ${notes.trim()}`
+          : `Completed ${callType.replace(/_/g, ' ')} call with outcome: ${outcomeLabel}`,
+        metadata: JSON.stringify({
+          callId: call.id,
+          outcome,
+          callType,
+          durationSeconds,
+          nextAction,
+          nextActionAt,
+        }),
+        occurredAt: call.occurredAt || new Date(),
+      },
+    });
+
+    // 5. If outcome is FOLLOW_UP_REQUIRED (or explicit nextActionAt provided), handle FollowUp record
+    let followUp = null;
+    if (outcome === 'FOLLOW_UP_REQUIRED' && parsedNextActionAt) {
+      // Check if duplicate follow-up exists for same time
+      const existingFollowUp = await tx.followUp.findFirst({
+        where: {
+          leadId,
+          status: 'PENDING',
+          scheduledAt: parsedNextActionAt,
+        },
+      });
+
+      if (!existingFollowUp) {
+        followUp = await tx.followUp.create({
+          data: {
+            leadId,
+            userId: currentLead.userId,
+            type: 'CALL',
+            status: 'PENDING',
+            scheduledAt: parsedNextActionAt,
+            notes: nextAction || `Follow-up required from call logged on ${new Date().toLocaleDateString()}`,
+          },
+        });
+      } else {
+        followUp = existingFollowUp;
+      }
+    }
+
+    // 6. If outcome is DEMO_BOOKED and nextActionAt provided, create Demo record
+    if ((outcome === 'DEMO_BOOKED' || outcome === 'SCHEDULED_DEMO') && parsedNextActionAt) {
+      await tx.demo.create({
+        data: {
+          leadId,
+          userId: currentLead.userId,
+          contactId: currentLead.contactId,
+          status: 'SCHEDULED',
+          scheduledAt: parsedNextActionAt,
+          durationMinutes: 30,
+          notes: nextAction || `Product Demo booked via call on ${new Date().toLocaleDateString()}`,
+        },
+      });
+    }
+
+    // 7. Synchronize with Customer Memory (Build 05)
+    if (nextAction && nextAction.trim()) {
+      const existingNextAction = await tx.customerMemory.findFirst({
+        where: { leadId, category: 'NEXT_ACTION', key: 'Next Action' },
+      });
+
+      if (existingNextAction) {
+        await tx.customerMemory.update({
+          where: { id: existingNextAction.id },
+          data: {
+            value: nextAction.trim(),
+            verificationState: 'CONFIRMED',
+            sourceType: 'CALL',
+            sourceActivityId: activity.id,
+            updatedAt: new Date(),
+          },
+        });
+      } else {
+        await tx.customerMemory.create({
+          data: {
+            leadId,
+            category: 'NEXT_ACTION',
+            key: 'Next Action',
+            value: nextAction.trim(),
+            verificationState: 'CONFIRMED',
+            sourceType: 'CALL',
+            sourceActivityId: activity.id,
+          },
+        });
+      }
+    }
+
+    if (input.memoryKey && input.memoryValue) {
+      await tx.customerMemory.create({
+        data: {
+          leadId,
+          category: (input.memoryCategory as any) || 'REQUIREMENT',
+          key: input.memoryKey.trim(),
+          value: input.memoryValue.trim(),
+          verificationState: 'CONFIRMED',
+          sourceType: 'CALL',
+          sourceActivityId: activity.id,
+        },
+      });
+    }
+
+    // 8. Update Lead
+    const updatedLead = await tx.lead.update({
+      where: { id: leadId },
+      data: {
+        status: updatedStatus,
+        temperature: updatedTemperature,
+        updatedAt: new Date(),
+        ...(parsedNextActionAt && { nextActionDate: parsedNextActionAt }),
+      },
+      include: { contact: true, business: true },
+    });
+
+    return {
+      call,
+      lead: updatedLead,
+      followUp,
+      activity,
+    };
+  });
+}

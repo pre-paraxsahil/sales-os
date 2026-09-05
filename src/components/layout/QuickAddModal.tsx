@@ -275,6 +275,116 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
                 )}
               </div>
             </div>
+          ) : selectedAction === 'add-follow-up' || selectedAction === 'schedule-call' ? (
+            /* Quick Reminder & Follow-up Scheduler */
+            <div className="mt-4 space-y-4">
+              <div className="flex items-center justify-between bg-slate-950/60 p-3 rounded-lg border border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="rounded-md p-1.5 bg-slate-900">
+                    <Clock className="h-4 w-4 text-amber-400" />
+                  </div>
+                  <span className="font-semibold text-sm text-slate-200">{currentAction?.title} & Reminder</span>
+                </div>
+                <button
+                  onClick={() => setSelectedAction(null)}
+                  className="text-xs text-slate-400 hover:text-indigo-400 underline"
+                >
+                  Back to All Actions
+                </button>
+              </div>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  const title = formData.get('title') as string;
+                  const dateStr = formData.get('scheduledAt') as string;
+                  const offset = parseInt((formData.get('offset') as string) || '15', 10);
+                  const notes = formData.get('notes') as string;
+
+                  if (!title || !dateStr) return;
+
+                  const scheduledTime = new Date(dateStr).getTime();
+                  const remindAtTime = new Date(scheduledTime - offset * 60 * 1000);
+
+                  try {
+                    await fetch('/api/reminders', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        title,
+                        message: notes || `Scheduled ${currentAction?.title}`,
+                        remindAt: remindAtTime.toISOString(),
+                        type: selectedAction === 'schedule-call' ? 'CALL' : 'FOLLOW_UP',
+                      }),
+                    });
+
+                    setSelectedAction(null);
+                    onClose();
+                  } catch (err) {
+                    console.error('Error creating reminder:', err);
+                  }
+                }}
+                className="space-y-3 bg-slate-950/60 p-4 rounded-xl border border-slate-800"
+              >
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Title / Purpose</label>
+                  <input
+                    type="text"
+                    name="title"
+                    required
+                    placeholder="e.g. Call ABC Supermarket decision maker"
+                    className="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Scheduled Date & Time</label>
+                    <input
+                      type="datetime-local"
+                      name="scheduledAt"
+                      required
+                      defaultValue={new Date(Date.now() + 3600000).toISOString().slice(0, 16)}
+                      className="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Reminder Alert Preset</label>
+                    <select
+                      name="offset"
+                      defaultValue="15"
+                      className="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                    >
+                      <option value="0">At time of activity</option>
+                      <option value="5">5 minutes before</option>
+                      <option value="15">15 minutes before</option>
+                      <option value="30">30 minutes before</option>
+                      <option value="60">1 hour before</option>
+                      <option value="1440">1 day before</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Notes / Context (Optional)</label>
+                  <textarea
+                    name="notes"
+                    rows={2}
+                    placeholder="Key topics, objections, or contract details to discuss..."
+                    className="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4" /> Save Activity & Set Push Reminder
+                </button>
+              </form>
+            </div>
           ) : (
             /* Other actions placeholder */
             <div className="mt-4 space-y-4">

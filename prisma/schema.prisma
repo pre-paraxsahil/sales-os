@@ -8,6 +8,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+ directUrl = env("DIRECT_URL")
 }
 
 // ==========================================
@@ -324,6 +325,7 @@ model User {
   weeklyReports WeeklyReport[]
   callingStats  CallingTimeStat[]
   notifications Notification[]
+  pushSubscriptions PushSubscription[]
   imports       Import[]
   exports       Export[]
   auditEvents   AuditEvent[]
@@ -660,6 +662,9 @@ model Reminder {
   entityType   String?
   remindAt     DateTime
   isRead       Boolean   @default(false)
+  isSent       Boolean   @default(false)
+  sentAt       DateTime?
+  clickUrl     String?
   snoozedUntil DateTime?
   completedAt  DateTime?
   createdAt    DateTime  @default(now())
@@ -999,6 +1004,23 @@ model BackupRecord {
   status      BackupStatus @default(PENDING)
   completedAt DateTime?
   createdAt   DateTime     @default(now())
+}
+
+model PushSubscription {
+  id        String    @id @default(uuid())
+  userId    String?
+  endpoint  String    @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  lastUsedAt DateTime?
+  revokedAt DateTime?
+
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model UserSetting {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Settings, Shield, Sliders, Database, Key, Bell } from 'lucide-react';
 import { ScheduleSettingsCard } from '@/components/settings/ScheduleSettingsCard';
+import { NotificationSettingsCard } from '@/components/settings/NotificationSettingsCard';
 
 export const metadata = {
   title: 'Settings | BroStartup Sales OS',
@@ -75,16 +76,8 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        {/* Notification & System Preferences */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-3">
-          <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-200">
-            <Bell className="h-4 w-4 text-amber-400" />
-            <span>System Notifications</span>
-          </div>
-          <p className="text-xs text-slate-400">
-            Configurable alert thresholds for urgent follow-ups, scheduled demos, and daily activity reminders.
-          </p>
-        </div>
+        {/* Web Push & System Notifications */}
+        <NotificationSettingsCard />
       </div>
     </div>
   );

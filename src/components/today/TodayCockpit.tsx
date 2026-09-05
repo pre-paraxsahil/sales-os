@@ -26,6 +26,7 @@ import {
   Coffee,
   X,
   Plus,
+  Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BeforeCallBriefModal } from '@/components/calls/BeforeCallBriefModal';
@@ -647,6 +648,99 @@ export const TodayCockpit: React.FC = () => {
           </span>
           <span className="text-[10px] text-slate-500">Full day blocks</span>
         </Link>
+      </div>
+
+      {/* 4.5 SMART SALES REMINDERS & NOTIFICATIONS WIDGET */}
+      <div className="rounded-2xl border border-amber-500/20 bg-slate-900/60 p-5 shadow-lg space-y-3.5">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <Bell className="w-4 h-4 text-amber-400" />
+            <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+              Smart Sales Reminders ({reminders.length})
+            </h3>
+          </div>
+          <div className="flex items-center gap-2 text-[10px]">
+            <span className="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 font-medium border border-rose-500/20">
+              DUE NOW: {reminders.filter((r: any) => new Date(r.remindAt) <= currentTime).length}
+            </span>
+            <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-medium border border-indigo-500/20">
+              UPCOMING: {reminders.filter((r: any) => new Date(r.remindAt) > currentTime).length}
+            </span>
+          </div>
+        </div>
+
+        {reminders.length === 0 ? (
+          <div className="py-4 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500 opacity-60" />
+            <span>No pending active reminders. Scheduled tasks are automatically alerted via Web Push.</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {reminders.slice(0, 6).map((rem: any) => {
+              const isDue = new Date(rem.remindAt) <= currentTime;
+              return (
+                <div
+                  key={rem.id}
+                  className={cn(
+                    'p-3.5 rounded-xl border flex flex-col justify-between space-y-2 text-xs transition',
+                    isDue
+                      ? 'bg-amber-950/20 border-amber-500/30'
+                      : 'bg-slate-950/70 border-slate-800'
+                  )}
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-bold text-slate-200 truncate">{rem.title}</span>
+                      <span
+                        className={cn(
+                          'text-[9px] font-bold px-1.5 py-0.5 rounded uppercase shrink-0',
+                          isDue
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                            : 'bg-slate-800 text-slate-400'
+                        )}
+                      >
+                        {isDue ? 'DUE NOW' : 'UPCOMING'}
+                      </span>
+                    </div>
+                    {rem.message && <p className="text-[11px] text-slate-400 line-clamp-2">{rem.message}</p>}
+                    <div className="text-[10px] text-slate-500 font-mono">
+                      {new Date(rem.remindAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
+                    {rem.leadId ? (
+                      <Link
+                        href={`/leads/${rem.leadId}`}
+                        className="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium"
+                      >
+                        View Lead →
+                      </Link>
+                    ) : (
+                      <span />
+                    )}
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleReminderAction(rem.id, 'SNOOZE')}
+                        className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] transition"
+                      >
+                        Snooze 15m
+                      </button>
+                      <button
+                        onClick={() => handleReminderAction(rem.id, 'COMPLETE')}
+                        className="p-1 rounded bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-[10px] transition"
+                        title="Mark Done"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* 5. DUAL COCKPIT LISTS: OVERDUE ACTIONS & PRIORITY LEADS */}

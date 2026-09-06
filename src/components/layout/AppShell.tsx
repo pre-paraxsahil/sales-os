@@ -13,7 +13,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col antialiased">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col antialiased">
       {/* Global Top Bar */}
       <TopBar onOpenQuickAdd={() => setIsQuickAddOpen(true)} />
 

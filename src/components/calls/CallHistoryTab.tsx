@@ -93,48 +93,48 @@ export const CallHistoryTab: React.FC<CallHistoryTabProps> = ({
     <div className="space-y-4">
       {/* Metric Cards Banner */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-center">
+        <div className="rounded-xl border border-slate-200 bg-white p-3 text-center shadow-xs">
           <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">Total Calls</span>
-          <span className="text-lg font-black text-slate-100">{metrics.totalCalls}</span>
+          <span className="text-lg font-black text-slate-900">{metrics.totalCalls}</span>
         </div>
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-3 text-center">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400 block">Connected</span>
-          <span className="text-lg font-black text-emerald-300">{metrics.connected}</span>
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 text-center shadow-xs">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-700 block">Connected</span>
+          <span className="text-lg font-black text-emerald-800">{metrics.connected}</span>
         </div>
-        <div className="rounded-xl border border-amber-500/20 bg-amber-950/20 p-3 text-center">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-amber-400 block">Interested</span>
-          <span className="text-lg font-black text-amber-300">{metrics.interested}</span>
+        <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3 text-center shadow-xs">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-amber-700 block">Interested</span>
+          <span className="text-lg font-black text-amber-800">{metrics.interested}</span>
         </div>
-        <div className="rounded-xl border border-violet-500/20 bg-violet-950/20 p-3 text-center">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-violet-400 block">Demos Booked</span>
-          <span className="text-lg font-black text-violet-300">{metrics.demosBooked}</span>
+        <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-3 text-center shadow-xs">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-violet-700 block">Demos Booked</span>
+          <span className="text-lg font-black text-violet-800">{metrics.demosBooked}</span>
         </div>
-        <div className="rounded-xl border border-sky-500/20 bg-sky-950/20 p-3 text-center">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-sky-400 block">Follow-ups</span>
-          <span className="text-lg font-black text-sky-300">{metrics.followUps}</span>
+        <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-3 text-center shadow-xs">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-sky-700 block">Follow-ups</span>
+          <span className="text-lg font-black text-sky-800">{metrics.followUps}</span>
         </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3 text-center">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">No Answer</span>
-          <span className="text-lg font-black text-slate-300">{metrics.noAnswers}</span>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center shadow-xs">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-600 block">No Answer</span>
+          <span className="text-lg font-black text-slate-800">{metrics.noAnswers}</span>
         </div>
-        <div className="rounded-xl border border-rose-500/20 bg-rose-950/20 p-3 text-center">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-rose-400 block">Not Interested</span>
-          <span className="text-lg font-black text-rose-300">{metrics.notInterested}</span>
+        <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-3 text-center shadow-xs">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-rose-700 block">Not Interested</span>
+          <span className="text-lg font-black text-rose-800">{metrics.notInterested}</span>
         </div>
       </div>
 
       {/* Action Header & Filter Bar */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+      <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-              <PhoneCall className="h-4 w-4 text-emerald-400" /> Call History & Activity
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+              <PhoneCall className="h-4 w-4 text-emerald-600" /> Call History & Activity
             </h3>
             <p className="text-[11px] text-slate-500">Real calls recorded for this lead in chronological order.</p>
           </div>
           <button
             onClick={onOpenLogCall}
-            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 transition-all shadow-md shadow-emerald-600/20 self-start sm:self-auto"
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 transition-all shadow-sm self-start sm:self-auto"
           >
             <PhoneCall className="h-3.5 w-3.5" />
             <span>Log New Call</span>
@@ -153,8 +153,8 @@ export const CallHistoryTab: React.FC<CallHistoryTabProps> = ({
               className={cn(
                 'rounded-lg px-2.5 py-1 text-xs font-medium transition-all whitespace-nowrap',
                 filter === btn.id
-                  ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
-                  : 'bg-slate-950/60 text-slate-400 border border-slate-800 hover:bg-slate-800 hover:text-slate-200'
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold shadow-xs'
+                  : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
               )}
             >
               {btn.label}
@@ -167,24 +167,24 @@ export const CallHistoryTab: React.FC<CallHistoryTabProps> = ({
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 w-full animate-pulse rounded-xl border border-slate-800 bg-slate-900/40" />
+            <div key={i} className="h-16 w-full animate-pulse rounded-xl border border-slate-200 bg-slate-100" />
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-5 text-center text-xs">
-          <AlertCircle className="mx-auto h-6 w-6 text-rose-400 mb-1" />
-          <p className="text-slate-200 font-semibold">{error}</p>
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-center text-xs">
+          <AlertCircle className="mx-auto h-6 w-6 text-rose-600 mb-1" />
+          <p className="text-rose-800 font-semibold">{error}</p>
           <button
             onClick={fetchCalls}
-            className="mt-2 inline-flex items-center gap-1 text-indigo-400 hover:underline"
+            className="mt-2 inline-flex items-center gap-1 text-indigo-600 font-bold hover:underline"
           >
             <RefreshCw className="h-3 w-3" /> Retry
           </button>
         </div>
       ) : calls.length === 0 ? (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-8 text-center">
-          <PhoneCall className="mx-auto h-8 w-8 text-slate-600 mb-2" />
-          <h4 className="text-xs font-bold text-slate-300">No calls recorded</h4>
+        <div className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-xs">
+          <PhoneCall className="mx-auto h-8 w-8 text-slate-400 mb-2" />
+          <h4 className="text-xs font-bold text-slate-800">No calls recorded</h4>
           <p className="text-[11px] text-slate-500 max-w-sm mx-auto mt-0.5">
             {filter !== 'ALL'
               ? 'No calls match the selected outcome filter.'
@@ -192,7 +192,7 @@ export const CallHistoryTab: React.FC<CallHistoryTabProps> = ({
           </p>
           <button
             onClick={onOpenLogCall}
-            className="mt-3 rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs text-indigo-400 hover:bg-slate-800"
+            className="mt-3 rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-slate-100"
           >
             Log First Call
           </button>
@@ -202,34 +202,34 @@ export const CallHistoryTab: React.FC<CallHistoryTabProps> = ({
           {calls.map((c) => {
             const isExpanded = expandedCallId === c.id;
             const outcomeBadge = {
-              CONNECTED: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-              INTERESTED: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-              DEMO_BOOKED: 'bg-violet-500/10 text-violet-400 border-violet-500/30',
-              SCHEDULED_DEMO: 'bg-violet-500/10 text-violet-400 border-violet-500/30',
-              FOLLOW_UP_REQUIRED: 'bg-sky-500/10 text-sky-400 border-sky-500/30',
-              NO_ANSWER: 'bg-slate-500/10 text-slate-400 border-slate-500/30',
-              BUSY: 'bg-amber-950/40 text-amber-400 border-amber-800/60',
-              SWITCHED_OFF: 'bg-slate-800 text-slate-400 border-slate-700',
-              NOT_INTERESTED: 'bg-rose-950/40 text-rose-400 border-rose-800',
-              WRONG_NUMBER: 'bg-rose-950/40 text-rose-400 border-rose-800',
-            }[c.outcome as string] || 'bg-slate-800 text-slate-300';
+              CONNECTED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+              INTERESTED: 'bg-amber-50 text-amber-700 border-amber-200',
+              DEMO_BOOKED: 'bg-violet-50 text-violet-700 border-violet-200',
+              SCHEDULED_DEMO: 'bg-violet-50 text-violet-700 border-violet-200',
+              FOLLOW_UP_REQUIRED: 'bg-sky-50 text-sky-700 border-sky-200',
+              NO_ANSWER: 'bg-slate-100 text-slate-600 border-slate-200',
+              BUSY: 'bg-amber-50 text-amber-700 border-amber-200',
+              SWITCHED_OFF: 'bg-slate-100 text-slate-600 border-slate-200',
+              NOT_INTERESTED: 'bg-rose-50 text-rose-700 border-rose-200',
+              WRONG_NUMBER: 'bg-rose-50 text-rose-700 border-rose-200',
+            }[c.outcome as string] || 'bg-slate-100 text-slate-700';
 
             return (
               <div
                 key={c.id}
-                className="rounded-xl border border-slate-800 bg-slate-900/70 p-3.5 transition-all hover:border-slate-700"
+                className="rounded-xl border border-slate-200 bg-white p-3.5 transition-all hover:border-indigo-200 shadow-xs"
               >
                 <div
                   onClick={() => setExpandedCallId(isExpanded ? null : c.id)}
                   className="flex items-center justify-between cursor-pointer"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="rounded-lg p-2 bg-slate-950 border border-slate-800 text-slate-300">
+                    <div className="rounded-lg p-2 bg-slate-50 border border-slate-200 text-slate-700">
                       <PhoneCall className="h-4 w-4" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-xs text-slate-200">
+                        <span className="font-bold text-xs text-slate-900">
                           {c.callType.replace(/_/g, ' ')}
                         </span>
                         <span className={cn('rounded border px-2 py-0.5 text-[10px] font-bold', outcomeBadge)}>
@@ -243,9 +243,9 @@ export const CallHistoryTab: React.FC<CallHistoryTabProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 text-slate-400 text-xs">
+                  <div className="flex items-center gap-2 text-slate-500 text-xs">
                     {c.nextAction && (
-                      <span className="text-[11px] text-amber-400 hidden sm:inline">
+                      <span className="text-[11px] text-amber-700 font-semibold hidden sm:inline">
                         Next: {c.nextAction}
                       </span>
                     )}
@@ -255,25 +255,25 @@ export const CallHistoryTab: React.FC<CallHistoryTabProps> = ({
 
                 {/* Expanded Details Card */}
                 {isExpanded && (
-                  <div className="mt-3 pt-3 border-t border-slate-800/80 space-y-2 text-xs">
+                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-2 text-xs">
                     {c.notes && (
-                      <div className="rounded-lg bg-slate-950 p-2.5 border border-slate-800 text-slate-300 leading-relaxed whitespace-pre-wrap">
+                      <div className="rounded-lg bg-slate-50 p-2.5 border border-slate-200 text-slate-800 leading-relaxed whitespace-pre-wrap">
                         <span className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Notes</span>
                         {c.notes}
                       </div>
                     )}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-400">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-600">
                       {c.nextAction && (
                         <div>
                           <span className="text-slate-500 block">Next Action:</span>
-                          <span className="text-amber-300 font-medium">{c.nextAction}</span>
+                          <span className="text-amber-800 font-bold">{c.nextAction}</span>
                         </div>
                       )}
                       {c.nextActionAt && (
                         <div>
                           <span className="text-slate-500 block">Next Action Date:</span>
-                          <span className="text-slate-200 font-mono">
+                          <span className="text-slate-800 font-mono font-medium">
                             {new Date(c.nextActionAt).toLocaleString()}
                           </span>
                         </div>

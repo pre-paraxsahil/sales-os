@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -21,17 +21,16 @@ import {
   Coffee,
   AlertTriangle,
   Zap,
-  Sliders,
-  ChevronLeft,
   ChevronRight,
-  Layers,
-} from "lucide-react";
-import { BeforeDemoBriefModal } from "@/components/demos/BeforeDemoBriefModal";
-import { DemoPlanDrawer } from "@/components/demos/DemoPlanDrawer";
-import { LiveDemoModal } from "@/components/demos/LiveDemoModal";
-import { PostDemoModal } from "@/components/demos/PostDemoModal";
-import { QuickWhatsAppModal } from "@/components/whatsapp/QuickWhatsAppModal";
-import { cn } from "@/lib/utils";
+  MessageSquare,
+  CheckSquare,
+} from 'lucide-react';
+import { BeforeDemoBriefModal } from '@/components/demos/BeforeDemoBriefModal';
+import { DemoPlanDrawer } from '@/components/demos/DemoPlanDrawer';
+import { LiveDemoModal } from '@/components/demos/LiveDemoModal';
+import { PostDemoModal } from '@/components/demos/PostDemoModal';
+import { QuickWhatsAppModal } from '@/components/whatsapp/QuickWhatsAppModal';
+import { cn } from '@/lib/utils';
 
 interface DemoItem {
   id: string;
@@ -71,14 +70,14 @@ interface ScheduleBlockData {
 }
 
 export function ScheduleClient() {
-  const [activeTab, setActiveTab] = useState<"DAY" | "WEEK" | "DEMOS">("DAY");
+  const [activeTab, setActiveTab] = useState<'DAY' | 'WEEK' | 'DEMOS'>('DAY');
   const [demos, setDemos] = useState<DemoItem[]>([]);
   const [scheduleData, setScheduleData] = useState<{
     blocks: ScheduleBlockData[];
     conflicts: any[];
   }>({ blocks: [], conflicts: [] });
   const [loading, setLoading] = useState<boolean>(true);
-  const [filter, setFilter] = useState<"ALL" | "SCHEDULED" | "COMPLETED">("ALL");
+  const [filter, setFilter] = useState<'ALL' | 'SCHEDULED' | 'COMPLETED'>('ALL');
   const [isRearranging, setIsRearranging] = useState<boolean>(false);
   const [rearrangedNotice, setRearrangedNotice] = useState<string | null>(null);
 
@@ -94,8 +93,8 @@ export function ScheduleClient() {
     try {
       setLoading(true);
       const [demosRes, scheduleRes] = await Promise.all([
-        fetch("/api/demos"),
-        fetch("/api/schedule"),
+        fetch('/api/demos'),
+        fetch('/api/schedule'),
       ]);
 
       if (demosRes.ok) {
@@ -112,7 +111,7 @@ export function ScheduleClient() {
         }
       }
     } catch (err) {
-      console.error("Failed to load schedule data:", err);
+      console.error('Failed to load schedule data:', err);
     } finally {
       setLoading(false);
     }
@@ -127,80 +126,97 @@ export function ScheduleClient() {
     try {
       setIsRearranging(true);
       setRearrangedNotice(null);
-      const res = await fetch("/api/schedule/recalculate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/schedule/recalculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
       const json = await res.json();
       if (json.success) {
         setRearrangedNotice(
           json.data?.movedItems?.length > 0
-            ? `SCHEDULE UPDATED: Automatically rearranged ${json.data.movedItems.length} flexible blocks around commitments.`
-            : "Schedule is already optimally aligned with all commitments."
+            ? `Schedule updated: Automatically arranged ${json.data.movedItems.length} flexible blocks around customer commitments.`
+            : 'Schedule is already optimally aligned with all commitments.'
         );
         fetchScheduleAndDemos();
       }
     } catch (err) {
-      console.error("Failed to rearrange schedule:", err);
+      console.error('Failed to rearrange schedule:', err);
     } finally {
       setIsRearranging(false);
     }
   };
 
   const filteredDemos = demos.filter((d) => {
-    if (filter === "ALL") return true;
+    if (filter === 'ALL') return true;
     return d.status === filter;
   });
 
+  const nextUpcomingDemo = demos.find((d) => d.status === 'SCHEDULED' && new Date(d.scheduledAt) >= new Date());
+
+  // Helper to categorize time blocks into simple buckets
+  const categorizeBlock = (block: ScheduleBlockData) => {
+    const hour = new Date(block.startTime).getHours();
+    if (hour < 13) return 'MORNING';
+    if (hour >= 13 && hour < 14) return 'LUNCH';
+    if (hour >= 14 && hour < 17) return 'AFTERNOON';
+    return 'LATER';
+  };
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6">
+    <div className="space-y-5 max-w-7xl mx-auto p-3 sm:p-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 p-6 rounded-2xl border border-slate-800 backdrop-blur-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20 uppercase tracking-wider">
-              Smart Schedule & Time Management
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-100 uppercase tracking-wider">
+              Today&apos;s Schedule & Activities
             </span>
             {scheduleData.conflicts.length > 0 && (
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase tracking-wider flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3" /> {scheduleData.conflicts.length} Conflict Detected
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200 uppercase tracking-wider flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3 text-rose-600" /> {scheduleData.conflicts.length} Conflict Detected
               </span>
             )}
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Daily Timeline & Demos</h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Dynamic sales time blocks, protected lunch hours, conflict detection, and live demo dispatcher.
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Today&apos;s Plan & Activities</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Your structured sales day: calls, demos, and follow-up slots organized by time.
           </p>
         </div>
 
         {/* Top Controls */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           {/* View Mode Tabs */}
-          <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
             <button
-              onClick={() => setActiveTab("DAY")}
+              onClick={() => setActiveTab('DAY')}
               className={cn(
-                "px-3 py-1.5 rounded-lg transition font-medium",
-                activeTab === "DAY" ? "bg-slate-800 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
+                'px-3 py-1.5 rounded-lg transition font-bold',
+                activeTab === 'DAY'
+                  ? 'bg-white text-indigo-900 shadow-xs border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
               )}
             >
-              Day Timeline
+              Day View
             </button>
             <button
-              onClick={() => setActiveTab("WEEK")}
+              onClick={() => setActiveTab('WEEK')}
               className={cn(
-                "px-3 py-1.5 rounded-lg transition font-medium",
-                activeTab === "WEEK" ? "bg-slate-800 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
+                'px-3 py-1.5 rounded-lg transition font-bold',
+                activeTab === 'WEEK'
+                  ? 'bg-white text-indigo-900 shadow-xs border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
               )}
             >
               Week View
             </button>
             <button
-              onClick={() => setActiveTab("DEMOS")}
+              onClick={() => setActiveTab('DEMOS')}
               className={cn(
-                "px-3 py-1.5 rounded-lg transition font-medium",
-                activeTab === "DEMOS" ? "bg-slate-800 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
+                'px-3 py-1.5 rounded-lg transition font-bold',
+                activeTab === 'DEMOS'
+                  ? 'bg-white text-indigo-900 shadow-xs border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
               )}
             >
               Demos ({demos.length})
@@ -209,7 +225,7 @@ export function ScheduleClient() {
 
           <button
             onClick={fetchScheduleAndDemos}
-            className="p-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-slate-200 transition"
+            className="p-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-500 hover:text-slate-800 transition"
             title="Refresh Schedule"
           >
             <RefreshCw className="w-4 h-4" />
@@ -217,284 +233,148 @@ export function ScheduleClient() {
         </div>
       </div>
 
+      {/* TODAY'S PLAN SUMMARY BAR */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="p-4 rounded-xl bg-indigo-50/70 border border-indigo-100 flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 block">
+              Today&apos;s Plan
+            </span>
+            <span className="text-sm font-black text-slate-900 mt-0.5 block">
+              {scheduleData.blocks.length + demos.filter(d => d.status === 'SCHEDULED').length} activities scheduled for today
+            </span>
+          </div>
+          <button
+            onClick={handleAutoRearrange}
+            disabled={isRearranging}
+            className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-500 transition shadow-xs"
+          >
+            {isRearranging ? 'Optimizing...' : 'Auto-Arrange'}
+          </button>
+        </div>
+
+        {nextUpcomingDemo ? (
+          <div className="p-4 rounded-xl bg-violet-50/70 border border-violet-100 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-violet-700 block">
+                Next Up
+              </span>
+              <span className="text-xs font-bold text-slate-900 mt-0.5 block truncate">
+                🎥 Demo with {nextUpcomingDemo.lead?.title || 'Client'} at{' '}
+                {new Date(nextUpcomingDemo.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+            <button
+              onClick={() => setActiveBriefDemo({ id: nextUpcomingDemo.id, leadId: nextUpcomingDemo.leadId })}
+              className="px-3 py-1.5 rounded-lg bg-violet-600 text-white font-bold text-xs hover:bg-violet-500 transition shadow-xs shrink-0 ml-2"
+            >
+              Open Plan
+            </button>
+          </div>
+        ) : (
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                Next Commitment
+              </span>
+              <span className="text-xs font-medium text-slate-700 mt-0.5 block">
+                No immediate demo conflict. Ready for outbound calling.
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Dynamic Rearrangement Banner */}
       {rearrangedNotice && (
-        <div className="p-3.5 rounded-xl bg-indigo-950/40 border border-indigo-500/40 text-xs text-indigo-200 flex items-center justify-between gap-3 shadow-md">
+        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-2 font-medium">
-            <Sparkles className="w-4 h-4 text-indigo-400 shrink-0" />
+            <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{rearrangedNotice}</span>
           </div>
           <button
             onClick={() => setRearrangedNotice(null)}
-            className="text-slate-400 hover:text-slate-200 text-xs"
+            className="text-emerald-700 hover:text-emerald-900 text-xs font-bold"
           >
             Dismiss
           </button>
         </div>
       )}
 
-      {/* Conflicts Alert Banner */}
-      {scheduleData.conflicts.length > 0 && (
-        <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-500/40 space-y-2">
-          <div className="flex items-center gap-2 text-rose-400 font-bold text-xs">
-            <AlertTriangle className="w-4 h-4" />
-            <span>Schedule Conflict Warning</span>
-          </div>
-          {scheduleData.conflicts.map((c: any) => (
-            <div key={c.id} className="text-xs text-rose-200 flex items-center justify-between pl-6">
-              <span>{c.title} — {c.reason}</span>
-              <button
-                onClick={handleAutoRearrange}
-                className="px-2.5 py-1 rounded bg-rose-900/50 hover:bg-rose-900 border border-rose-500/30 text-[11px] font-semibold text-rose-200 transition"
-              >
-                Auto-Rearrange
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* TAB 1: DAY TIMELINE VIEW */}
-      {activeTab === "DAY" && (
+      {/* TAB 1: DAY VIEW */}
+      {activeTab === 'DAY' && (
         <div className="space-y-4">
           {loading && scheduleData.blocks.length === 0 ? (
             <div className="space-y-3 animate-pulse">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-16 w-full rounded-xl skeleton-shimmer border border-slate-800" />
+                <div key={i} className="h-16 w-full rounded-xl bg-white border border-slate-200" />
               ))}
             </div>
           ) : (
-            <>
-              <div className="flex items-center justify-between bg-slate-900/40 p-4 rounded-xl border border-slate-800 text-xs">
+            <div className="space-y-3">
+              {scheduleData.blocks.map((block) => {
+                const startStr = new Date(block.startTime).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                });
+                const endStr = new Date(block.endTime).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                });
 
-            <div className="flex items-center gap-3 text-slate-300">
-              <span className="flex items-center gap-1.5 font-semibold text-white">
-                <Clock className="w-4 h-4 text-indigo-400" /> Default Sales Day (10:00 AM – 6:00 PM)
-              </span>
-              <span className="text-slate-500">|</span>
-              <span className="flex items-center gap-1 text-amber-300">
-                <Coffee className="w-3.5 h-3.5 text-amber-400" /> 2:00 PM – 3:00 PM Protected Lunch
-              </span>
-            </div>
-
-            <button
-              onClick={handleAutoRearrange}
-              disabled={isRearranging}
-              className="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-xs font-semibold transition flex items-center gap-1.5"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              {isRearranging ? "Optimizing..." : "Auto-Arrange Around Demos"}
-            </button>
-          </div>
-
-          {/* Timeline Blocks */}
-          <div className="space-y-2.5">
-            {scheduleData.blocks.map((block) => {
-              const startStr = new Date(block.startTime).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              });
-              const endStr = new Date(block.endTime).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              });
-
-              const isLunch = block.blockType === "LUNCH";
-              const isClosing = block.blockType === "CLOSING";
-              const isCalling = block.blockType === "CALLING";
-
-              return (
-                <div
-                  key={block.id}
-                  className={cn(
-                    "p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs transition shadow-sm",
-                    isLunch
-                      ? "bg-amber-950/20 border-amber-500/30 text-amber-200"
-                      : isClosing
-                      ? "bg-purple-950/20 border-purple-500/30 text-purple-200"
-                      : isCalling
-                      ? "bg-indigo-950/20 border-indigo-500/30 text-indigo-200"
-                      : "bg-slate-900/50 border-slate-800 text-slate-300"
-                  )}
-                >
-                  <div className="flex items-start sm:items-center gap-3">
-                    <div className="font-mono font-bold text-slate-300 shrink-0 w-28 text-[11px]">
-                      {startStr} – {endStr}
-                    </div>
-
-                    <div>
-                      <div className="font-bold text-slate-100 flex items-center gap-2">
-                        <span>{block.title}</span>
-                        {block.isProtected && (
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                            <ShieldCheck className="w-3 h-3" /> Protected
-                          </span>
-                        )}
-                      </div>
-                      {block.notes && (
-                        <p className="text-[11px] text-slate-400 mt-0.5">{block.notes}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-950 border border-slate-800 text-slate-400">
-                      {block.blockType}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          </>
-          )}
-        </div>
-      )}
-
-      {/* TAB 2: WEEK VIEW */}
-      {activeTab === "WEEK" && (
-        <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800 text-xs text-slate-400 flex items-center justify-between">
-            <span>Standard 6-Day Sales Week (Monday to Saturday)</span>
-            <span className="text-indigo-400 font-medium">Weekly demo target: 6 demos</span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
-            {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((day, idx) => (
-              <div
-                key={day}
-                className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 space-y-3 flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-200 text-xs">{day}</span>
-                    <span className="text-[10px] text-slate-500 font-mono">Day {idx + 1}</span>
-                  </div>
-                  <div className="text-[11px] text-slate-400 mt-2">
-                    10:00 AM – 6:00 PM
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-slate-800 text-[11px] space-y-1">
-                  <div className="text-slate-400">
-                    Demos: <span className="font-mono text-emerald-400 font-semibold">{idx === 0 ? demos.length : 0}</span>
-                  </div>
-                  <div className="text-slate-400">
-                    Status: <span className="text-slate-300">Active</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: DEMOS LIST VIEW */}
-      {activeTab === "DEMOS" && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between bg-slate-900/40 p-4 rounded-xl border border-slate-800 text-xs">
-            <span className="text-slate-400">Filter scheduled presentations:</span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setFilter("ALL")}
-                className={cn(
-                  "px-2.5 py-1 rounded-lg text-[11px] font-medium transition",
-                  filter === "ALL" ? "bg-slate-800 text-white" : "text-slate-400 hover:text-slate-200"
-                )}
-              >
-                All ({demos.length})
-              </button>
-              <button
-                onClick={() => setFilter("SCHEDULED")}
-                className={cn(
-                  "px-2.5 py-1 rounded-lg text-[11px] font-medium transition",
-                  filter === "SCHEDULED" ? "bg-slate-800 text-white" : "text-slate-400 hover:text-slate-200"
-                )}
-              >
-                Scheduled
-              </button>
-              <button
-                onClick={() => setFilter("COMPLETED")}
-                className={cn(
-                  "px-2.5 py-1 rounded-lg text-[11px] font-medium transition",
-                  filter === "COMPLETED" ? "bg-slate-800 text-white" : "text-slate-400 hover:text-slate-200"
-                )}
-              >
-                Completed
-              </button>
-            </div>
-          </div>
-
-          {filteredDemos.length === 0 ? (
-            <div className="p-12 text-center text-xs text-slate-500 rounded-xl border border-slate-800 bg-slate-900/20">
-              No demos match the current filter.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredDemos.map((demo) => {
-                const sDate = new Date(demo.scheduledAt);
-                const hasPlan = Boolean(demo.demoPlan);
+                const isLunch = block.blockType === 'LUNCH';
+                const isDemo = block.blockType === 'DEMO';
+                const isCalling = block.blockType === 'CALLING' || block.blockType === 'CALLBACK';
+                const isFollowUp = block.blockType === 'FOLLOW_UP';
 
                 return (
                   <div
-                    key={demo.id}
-                    className="p-5 rounded-2xl border border-slate-800 bg-slate-900/60 space-y-3.5 shadow-lg"
+                    key={block.id}
+                    className={cn(
+                      'p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs transition shadow-xs bg-white',
+                      isLunch
+                        ? 'border-amber-200 bg-amber-50/50 text-amber-900'
+                        : isDemo
+                        ? 'border-violet-200 bg-violet-50/40 text-slate-900'
+                        : isCalling
+                        ? 'border-indigo-200 bg-indigo-50/40 text-slate-900'
+                        : 'border-slate-200 text-slate-900'
+                    )}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="text-sm font-bold text-white">
-                          {demo.lead?.business?.name || demo.lead?.title || "Prospect"}
-                        </h3>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          {demo.lead?.contact?.name || "Contact Person"} •{" "}
-                          {demo.lead?.contact?.phone || "No phone"}
-                        </p>
+                    <div className="flex items-start sm:items-center gap-3">
+                      <div className="font-mono font-bold text-slate-700 shrink-0 w-28 text-[11px] bg-slate-100/80 px-2 py-1 rounded text-center border border-slate-200">
+                        {startStr} – {endStr}
                       </div>
 
-                      <span
-                        className={cn(
-                          "px-2.5 py-0.5 rounded text-[10px] font-bold uppercase",
-                          demo.status === "COMPLETED"
-                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                            : "bg-sky-500/10 text-sky-400 border border-sky-500/20"
+                      <div>
+                        <div className="font-bold text-slate-900 flex items-center gap-2">
+                          <span>
+                            {isDemo
+                              ? `🎥 ${block.title}`
+                              : isCalling
+                              ? `📞 ${block.title}`
+                              : isFollowUp
+                              ? `💬 ${block.title}`
+                              : isLunch
+                              ? `🍱 ${block.title}`
+                              : `✅ ${block.title}`}
+                          </span>
+                          {block.isProtected && (
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
+                              <ShieldCheck className="w-3 h-3" /> Protected
+                            </span>
+                          )}
+                        </div>
+                        {block.notes && (
+                          <p className="text-[11px] text-slate-500 mt-0.5">{block.notes}</p>
                         )}
-                      >
-                        {demo.status}
-                      </span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-4 text-xs text-slate-300 font-mono pt-2 border-t border-slate-800">
-                      <span className="flex items-center gap-1.5">
-                        <CalendarIcon className="w-3.5 h-3.5 text-indigo-400" />
-                        {sDate.toLocaleDateString()}
+                    <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 border border-slate-200 text-slate-600 uppercase">
+                        {block.blockType}
                       </span>
-                      <span className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-indigo-400" />
-                        {sDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                      <span>({demo.durationMinutes || 30} mins)</span>
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
-                      <button
-                        onClick={() => setActiveBriefDemo({ id: demo.id, leadId: demo.leadId })}
-                        className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition"
-                      >
-                        Brief
-                      </button>
-                      <button
-                        onClick={() => setActivePlanDemo({ id: demo.id, leadId: demo.leadId })}
-                        className="px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 text-xs font-semibold transition flex items-center gap-1"
-                      >
-                        <Sparkles className="w-3 h-3" />
-                        {hasPlan ? "Plan" : "Generate Plan"}
-                      </button>
-                      <button
-                        onClick={() => setActiveLiveDemo({ id: demo.id, leadId: demo.leadId })}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1 ml-auto"
-                      >
-                        <Play className="w-3 h-3 fill-current" /> Live Demo
-                      </button>
                     </div>
                   </div>
                 );
@@ -504,18 +384,118 @@ export function ScheduleClient() {
         </div>
       )}
 
-      {/* MODALS */}
+      {/* TAB 2: WEEK VIEW */}
+      {activeTab === 'WEEK' && (
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-white border border-slate-200 text-xs text-slate-600 flex items-center justify-between shadow-xs">
+            <span className="font-semibold text-slate-800">Standard 6-Day Sales Week (Monday to Saturday)</span>
+            <span className="text-indigo-700 font-bold">Target: 6 live demos / week</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+              <div key={day} className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-2 shadow-xs">
+                <div className="font-bold text-xs text-slate-800 border-b border-slate-100 pb-1.5 flex justify-between">
+                  <span>{day}</span>
+                  <span className="text-slate-400 font-normal">10am–6pm</span>
+                </div>
+                <div className="space-y-1 text-[11px] text-slate-600">
+                  <div className="p-1.5 rounded bg-indigo-50 border border-indigo-100 text-indigo-800 font-medium">
+                    📞 10am: Calling
+                  </div>
+                  <div className="p-1.5 rounded bg-amber-50 border border-amber-100 text-amber-800">
+                    🍱 1pm: Lunch
+                  </div>
+                  <div className="p-1.5 rounded bg-violet-50 border border-violet-100 text-violet-800 font-medium">
+                    🎥 2pm: Demos
+                  </div>
+                  <div className="p-1.5 rounded bg-slate-50 border border-slate-200 text-slate-700">
+                    💬 5pm: Follow-ups
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: DEMOS VIEW */}
+      {activeTab === 'DEMOS' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
+            <span className="text-xs font-bold text-slate-800">Filter Demos:</span>
+            <div className="flex gap-1">
+              {(['ALL', 'SCHEDULED', 'COMPLETED'] as const).map((st) => (
+                <button
+                  key={st}
+                  onClick={() => setFilter(st)}
+                  className={cn(
+                    'px-3 py-1 rounded-lg text-xs font-semibold transition',
+                    filter === st
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  )}
+                >
+                  {st}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2.5">
+            {filteredDemos.map((demo) => (
+              <div
+                key={demo.id}
+                className="p-4 rounded-xl border border-slate-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        'px-2 py-0.5 rounded text-[10px] font-bold uppercase',
+                        demo.status === 'COMPLETED'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-violet-100 text-violet-800'
+                      )}
+                    >
+                      {demo.status}
+                    </span>
+                    <span className="font-bold text-slate-900 text-sm">
+                      {demo.title || `Product Demo: ${demo.lead?.title || 'Prospect'}`}
+                    </span>
+                  </div>
+                  <p className="text-slate-500 text-[11px] mt-0.5">
+                    📅 {new Date(demo.scheduledAt).toLocaleString()} ({demo.durationMinutes || 30} mins)
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setActiveBriefDemo({ id: demo.id, leadId: demo.leadId })}
+                    className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold border border-indigo-200 transition text-[11px]"
+                  >
+                    Before-Demo Brief
+                  </button>
+                  <button
+                    onClick={() => setActiveLiveDemo({ id: demo.id, leadId: demo.leadId })}
+                    className="px-3.5 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-bold transition text-[11px] shadow-xs"
+                  >
+                    Launch Live Demo
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modals */}
       {activeBriefDemo && (
         <BeforeDemoBriefModal
           demoId={activeBriefDemo.id}
           leadId={activeBriefDemo.leadId}
-          isOpen={Boolean(activeBriefDemo)}
+          isOpen={!!activeBriefDemo}
           onClose={() => setActiveBriefDemo(null)}
-          onOpenDemoPlan={() => {
-            const current = activeBriefDemo;
-            setActiveBriefDemo(null);
-            setActivePlanDemo(current);
-          }}
           onLaunchLiveDemo={() => {
             const current = activeBriefDemo;
             setActiveBriefDemo(null);
@@ -524,21 +504,11 @@ export function ScheduleClient() {
         />
       )}
 
-      {activePlanDemo && (
-        <DemoPlanDrawer
-          demoId={activePlanDemo.id}
-          leadId={activePlanDemo.leadId}
-          isOpen={Boolean(activePlanDemo)}
-          onClose={() => setActivePlanDemo(null)}
-          onPlanUpdated={fetchScheduleAndDemos}
-        />
-      )}
-
       {activeLiveDemo && (
         <LiveDemoModal
           demoId={activeLiveDemo.id}
           leadId={activeLiveDemo.leadId}
-          isOpen={Boolean(activeLiveDemo)}
+          isOpen={!!activeLiveDemo}
           onClose={() => setActiveLiveDemo(null)}
           onFinishDemo={() => {
             const current = activeLiveDemo;
@@ -552,22 +522,26 @@ export function ScheduleClient() {
         <PostDemoModal
           demoId={activePostDemo.id}
           leadId={activePostDemo.leadId}
-          isOpen={Boolean(activePostDemo)}
+          isOpen={!!activePostDemo}
           onClose={() => setActivePostDemo(null)}
           onSuccess={() => {
             setActivePostDemo(null);
             fetchScheduleAndDemos();
           }}
-          onOpenWhatsApp={(cat) => setQuickWhatsAppTarget({ leadId: activePostDemo.leadId, category: cat })}
+          onOpenWhatsApp={(cat) => {
+            const current = activePostDemo;
+            setActivePostDemo(null);
+            setQuickWhatsAppTarget({ leadId: current.leadId, category: cat });
+          }}
         />
       )}
 
       {quickWhatsAppTarget && (
         <QuickWhatsAppModal
-          isOpen={Boolean(quickWhatsAppTarget)}
-          onClose={() => setQuickWhatsAppTarget(null)}
           leadId={quickWhatsAppTarget.leadId}
           initialCategory={quickWhatsAppTarget.category}
+          isOpen={!!quickWhatsAppTarget}
+          onClose={() => setQuickWhatsAppTarget(null)}
         />
       )}
     </div>

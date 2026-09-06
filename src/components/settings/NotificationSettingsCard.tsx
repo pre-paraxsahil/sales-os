@@ -74,47 +74,47 @@ export function NotificationSettingsCard() {
   };
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
+    <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4 shadow-xs">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-200">
-          <Bell className="h-4 w-4 text-amber-400" />
+        <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-900">
+          <Bell className="h-4 w-4 text-amber-500" />
           <span>Web Push Notifications & Reminders</span>
         </div>
 
         {permissionState === 'granted' && (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <CheckCircle2 className="h-3.5 w-3.5" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
             Active
           </span>
         )}
         {permissionState === 'denied' && (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            <AlertCircle className="h-3.5 w-3.5" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+            <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
             Denied
           </span>
         )}
         {permissionState === 'unsupported' && (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
             Unsupported
           </span>
         )}
       </div>
 
-      <p className="text-xs text-slate-400 leading-relaxed">
+      <p className="text-xs text-slate-600 leading-relaxed">
         Receive real-time push alerts on your desktop or mobile home screen for upcoming sales follow-ups, hot lead callbacks, and scheduled demos.
       </p>
 
       {permissionState === 'granted' ? (
         <div className="space-y-3">
-          <div className="rounded-lg bg-slate-950 p-3 text-xs text-slate-300 border border-slate-800 flex items-center justify-between">
+          <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-800 border border-slate-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
               <span>Browser subscription registered with Sales OS backend.</span>
             </div>
             <button
               onClick={handleDisablePush}
               disabled={loading}
-              className="text-[11px] text-rose-400 hover:text-rose-300 font-medium underline"
+              className="text-[11px] text-rose-600 hover:text-rose-700 font-semibold underline"
             >
               Disable
             </button>
@@ -123,32 +123,32 @@ export function NotificationSettingsCard() {
           <button
             onClick={handleSendTestPush}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-medium transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold transition active:scale-[0.98]"
           >
             {loading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
             <span>Run Push Scheduler Test</span>
           </button>
         </div>
       ) : permissionState === 'denied' ? (
-        <div className="rounded-lg bg-amber-950/20 border border-amber-800/40 p-3 space-y-1 text-xs text-amber-200">
-          <div className="font-semibold flex items-center gap-1.5 text-amber-300">
-            <AlertCircle className="h-3.5 w-3.5" />
+        <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 space-y-1 text-xs text-amber-900">
+          <div className="font-semibold flex items-center gap-1.5 text-amber-800">
+            <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
             <span>Browser Permission Blocked</span>
           </div>
-          <p className="text-[11px] text-amber-300/80">
-            Notifications are currently blocked by your browser settings. To enable, click the lock icon near your browser address bar and select "Allow Notifications".
+          <p className="text-[11px] text-amber-800/80">
+            Notifications are currently blocked by your browser settings. To enable, click the lock icon near your browser address bar and select &quot;Allow Notifications&quot;.
           </p>
         </div>
       ) : permissionState === 'unsupported' ? (
-        <div className="rounded-lg bg-slate-950 p-3 text-xs text-slate-400 border border-slate-800 flex items-center gap-2">
-          <BellOff className="h-4 w-4 text-slate-500" />
+        <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600 border border-slate-200 flex items-center gap-2">
+          <BellOff className="h-4 w-4 text-slate-400" />
           <span>Web Push is not supported by your current browser environment.</span>
         </div>
       ) : (
         <button
           onClick={handleEnablePush}
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium shadow-md shadow-indigo-600/20 transition-all"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs font-semibold shadow-xs transition"
         >
           {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
           <span>Enable Sales OS Push Notifications</span>
@@ -159,8 +159,8 @@ export function NotificationSettingsCard() {
         <div
           className={`p-2.5 rounded-md text-xs font-medium border ${
             statusMessage.isError
-              ? 'bg-rose-950/30 border-rose-800/40 text-rose-300'
-              : 'bg-emerald-950/30 border-emerald-800/40 text-emerald-300'
+              ? 'bg-rose-50 border-rose-200 text-rose-700'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-800'
           }`}
         >
           {statusMessage.text}

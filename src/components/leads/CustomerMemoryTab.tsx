@@ -41,23 +41,23 @@ interface CustomerMemoryTabProps {
 }
 
 const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
-  REQUIREMENT: { label: 'Requirement', color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
-  PAIN_POINT: { label: 'Pain Point', color: 'text-rose-400 bg-rose-500/10 border-rose-500/20' },
-  BUYING_SIGNAL: { label: 'Buying Signal', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
-  OBJECTION: { label: 'Objection', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
-  DECISION_MAKER: { label: 'Decision Maker', color: 'text-purple-400 bg-purple-500/10 border-purple-500/20' },
-  TIMELINE: { label: 'Timeline', color: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20' },
-  BUDGET: { label: 'Budget', color: 'text-emerald-300 bg-emerald-950/40 border-emerald-500/30' },
-  PACKAGE: { label: 'Package / Plan', color: 'text-sky-400 bg-sky-500/10 border-sky-500/20' },
-  NEXT_ACTION: { label: 'Next Action', color: 'text-amber-300 bg-amber-950/40 border-amber-500/30' },
-  BUSINESS: { label: 'Business Profile', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' },
-  CONTACT: { label: 'Contact Details', color: 'text-teal-400 bg-teal-500/10 border-teal-500/20' },
-  CURRENT_PROCESS: { label: 'Current Process', color: 'text-slate-300 bg-slate-800/60 border-slate-700' },
-  GOAL: { label: 'Business Goal', color: 'text-emerald-400 bg-emerald-950/30 border-emerald-500/20' },
-  TEAM: { label: 'Team', color: 'text-violet-400 bg-violet-500/10 border-violet-500/20' },
-  COMPETITOR: { label: 'Competitor', color: 'text-red-400 bg-red-500/10 border-red-500/20' },
-  PROMISE: { label: 'Promise / Commitment', color: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20' },
-  GENERAL_CONTEXT: { label: 'General Context', color: 'text-slate-400 bg-slate-800/40 border-slate-700' },
+  REQUIREMENT: { label: 'Requirement', color: 'text-indigo-700 bg-indigo-50 border-indigo-200' },
+  PAIN_POINT: { label: 'Pain Point', color: 'text-rose-700 bg-rose-50 border-rose-200' },
+  BUYING_SIGNAL: { label: 'Buying Signal', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+  OBJECTION: { label: 'Objection', color: 'text-amber-700 bg-amber-50 border-amber-200' },
+  DECISION_MAKER: { label: 'Decision Maker', color: 'text-purple-700 bg-purple-50 border-purple-200' },
+  TIMELINE: { label: 'Timeline', color: 'text-cyan-700 bg-cyan-50 border-cyan-200' },
+  BUDGET: { label: 'Budget', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+  PACKAGE: { label: 'Package / Plan', color: 'text-sky-700 bg-sky-50 border-sky-200' },
+  NEXT_ACTION: { label: 'Next Action', color: 'text-amber-700 bg-amber-50 border-amber-200' },
+  BUSINESS: { label: 'Business Profile', color: 'text-blue-700 bg-blue-50 border-blue-200' },
+  CONTACT: { label: 'Contact Details', color: 'text-teal-700 bg-teal-50 border-teal-200' },
+  CURRENT_PROCESS: { label: 'Current Process', color: 'text-slate-700 bg-slate-100 border-slate-200' },
+  GOAL: { label: 'Business Goal', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+  TEAM: { label: 'Team', color: 'text-violet-700 bg-violet-50 border-violet-200' },
+  COMPETITOR: { label: 'Competitor', color: 'text-red-700 bg-red-50 border-red-200' },
+  PROMISE: { label: 'Promise / Commitment', color: 'text-amber-700 bg-amber-50 border-amber-200' },
+  GENERAL_CONTEXT: { label: 'General Context', color: 'text-slate-700 bg-slate-100 border-slate-200' },
 };
 
 export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
@@ -148,12 +148,13 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
         setFormKey('');
         setFormValue('');
         fetchMemories();
-        onMemoryChanged?.();
+        if (onMemoryChanged) onMemoryChanged();
       } else {
-        alert(json.error || 'Failed to record memory fact.');
+        alert(json.error || 'Failed to add memory record.');
       }
-    } catch {
-      alert('Network error saving memory fact.');
+    } catch (err) {
+      console.error('Error adding memory:', err);
+      alert('Error adding memory fact.');
     } finally {
       setSubmitting(false);
     }
@@ -181,136 +182,101 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
       if (res.ok && json.success) {
         setEditingMemory(null);
         fetchMemories();
-        onMemoryChanged?.();
+        if (onMemoryChanged) onMemoryChanged();
       } else {
-        alert(json.error || 'Failed to update memory.');
+        alert(json.error || 'Failed to update memory record.');
       }
-    } catch {
-      alert('Network error updating memory.');
+    } catch (err) {
+      console.error('Error updating memory:', err);
+      alert('Error updating memory fact.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Handle Reject Action
+  // Handle Reject
   const handleReject = async (memory: CustomerMemoryItem) => {
-    if (!confirm(`Mark "${memory.key}" as REJECTED? This will preserve historical records but flag this fact as incorrect.`)) {
-      return;
-    }
+    if (!confirm(`Mark "${memory.key}" as REJECTED?`)) return;
 
     try {
       const res = await fetch(`/api/leads/${leadId}/memory/${memory.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ verificationState: 'REJECTED' }),
+        body: JSON.stringify({
+          verificationState: 'REJECTED',
+        }),
       });
 
       const json = await res.json();
       if (res.ok && json.success) {
         fetchMemories();
-        onMemoryChanged?.();
+        if (onMemoryChanged) onMemoryChanged();
       } else {
         alert(json.error || 'Failed to reject memory fact.');
       }
-    } catch {
-      alert('Network error rejecting memory fact.');
+    } catch (err) {
+      console.error('Error rejecting memory:', err);
     }
   };
 
-  // Available categories present in data or options
   const categoryKeys = Object.keys(CATEGORY_LABELS);
 
   return (
     <div className="space-y-6">
-      {/* Top Header Card */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-5 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="rounded border px-2 py-0.5 text-xs font-semibold border-indigo-500/30 bg-indigo-950/40 text-indigo-300 flex items-center gap-1">
-                <Sparkles className="h-3.5 w-3.5 text-indigo-400" /> Customer Memory
-              </span>
-              <span className="text-xs text-slate-400 font-mono">
-                Database Source of Truth
-              </span>
-            </div>
-            <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-emerald-400" />
-              Verified Facts & Discovered Intelligence
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5 max-w-2xl">
-              Reliable, chronological customer facts aggregated from Calls, Demos, WhatsApp, and manual notes.
-              Confirmed facts are never invented or overwritten.
-            </p>
-          </div>
-
+      {/* 1. Header & Summary Stats */}
+      <div className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/70 via-white to-white p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => fetchMemories()}
-              className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700 transition-colors"
-              title="Refresh facts"
-            >
-              <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
-              Refresh
-            </button>
-
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition-all shadow-md shadow-indigo-600/20"
-            >
-              <Plus className="h-4 w-4" />
-              Add Fact
-            </button>
+            <div className="rounded-xl bg-indigo-100 p-1.5 text-indigo-700">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <h3 className="text-base font-bold text-slate-900">What I Know About This Lead</h3>
           </div>
+          <p className="text-xs text-slate-600">
+            Persistent facts, requirements, objections, and buying signals extracted from sales touchpoints.
+          </p>
         </div>
 
-        {/* Fact Metrics Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-4 border-t border-slate-800/80">
-          <div className="rounded-lg bg-slate-950/50 p-2.5 border border-slate-800">
-            <span className="text-[11px] text-slate-400 block">Total Recorded</span>
-            <span className="text-lg font-bold text-slate-100">{counts.total}</span>
+        {/* Counts & Action */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-bold text-emerald-700 shadow-2xs">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {counts.confirmed} Confirmed
+            </span>
+            <span className="flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 font-bold text-amber-700 shadow-2xs">
+              <HelpCircle className="h-3.5 w-3.5" />
+              {counts.inferred} Inferred
+            </span>
           </div>
 
-          <div className="rounded-lg bg-emerald-950/20 p-2.5 border border-emerald-500/20">
-            <span className="text-[11px] text-emerald-400 block flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3" /> Confirmed
-            </span>
-            <span className="text-lg font-bold text-emerald-300">{counts.confirmed}</span>
-          </div>
-
-          <div className="rounded-lg bg-amber-950/20 p-2.5 border border-amber-500/20">
-            <span className="text-[11px] text-amber-400 block flex items-center gap-1">
-              <HelpCircle className="h-3 w-3" /> Inferred
-            </span>
-            <span className="text-lg font-bold text-amber-300">{counts.inferred}</span>
-          </div>
-
-          <div className="rounded-lg bg-rose-950/20 p-2.5 border border-rose-500/20">
-            <span className="text-[11px] text-rose-400 block flex items-center gap-1">
-              <XCircle className="h-3 w-3" /> Rejected
-            </span>
-            <span className="text-lg font-bold text-rose-300">{counts.rejected}</span>
-          </div>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition-all active:scale-[0.98]"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Fact
+          </button>
         </div>
       </div>
 
-      {/* Controls: Search & Category Pills */}
+      {/* 2. Search & Category Filters Bar */}
       <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
           {/* Search Input */}
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search memory by requirement, objection, pain point, key..."
-              className="w-full rounded-lg border border-slate-800 bg-slate-900/80 pl-9 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-600 focus:outline-none shadow-xs"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -318,16 +284,16 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
           </div>
 
           {/* State Filter */}
-          <div className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/60 p-1">
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-xs">
             {['ALL', 'CONFIRMED', 'INFERRED', 'REJECTED'].map((st) => (
               <button
                 key={st}
                 onClick={() => setSelectedState(st)}
                 className={cn(
-                  'rounded px-2.5 py-1 text-[11px] font-medium transition-colors',
+                  'rounded-lg px-2.5 py-1 text-[11px] font-bold transition-colors',
                   selectedState === st
-                    ? 'bg-slate-800 text-slate-100 font-semibold'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'bg-indigo-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 )}
               >
                 {st === 'ALL' ? 'All States' : st}
@@ -341,10 +307,10 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
           <button
             onClick={() => setSelectedCategory('ALL')}
             className={cn(
-              'rounded-full px-3 py-1 text-[11px] font-medium transition-colors whitespace-nowrap border',
+              'rounded-full px-3 py-1 text-[11px] font-bold transition-colors whitespace-nowrap border',
               selectedCategory === 'ALL'
-                ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
-                : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-200'
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900'
             )}
           >
             All Categories ({counts.total})
@@ -357,10 +323,10 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
                 key={catKey}
                 onClick={() => setSelectedCategory(catKey)}
                 className={cn(
-                  'rounded-full px-3 py-1 text-[11px] font-medium transition-colors whitespace-nowrap border',
+                  'rounded-full px-3 py-1 text-[11px] font-bold transition-colors whitespace-nowrap border',
                   isSelected
-                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
-                    : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-200'
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900'
                 )}
               >
                 {catInfo.label}
@@ -370,32 +336,32 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
         </div>
       </div>
 
-      {/* Memory Items List */}
+      {/* 3. Memory Items List */}
       {loading ? (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-12 text-center">
-          <RefreshCw className="h-6 w-6 text-indigo-400 animate-spin mx-auto mb-2" />
-          <p className="text-xs text-slate-400">Loading customer memory facts...</p>
+        <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-xs">
+          <RefreshCw className="h-6 w-6 text-indigo-600 animate-spin mx-auto mb-2" />
+          <p className="text-xs text-slate-500 font-medium">Loading memory facts...</p>
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-rose-800/40 bg-rose-950/20 p-5 text-rose-300 text-xs">
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-700 text-xs font-medium">
           {error}
         </div>
       ) : memories.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-800 bg-slate-900/30 p-12 text-center space-y-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 mx-auto">
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center space-y-3 shadow-xs">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 mx-auto">
             <Layers className="h-6 w-6" />
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-slate-200">No Memory Facts Found</h4>
-            <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+            <h4 className="text-sm font-bold text-slate-900">No Memory Facts Found</h4>
+            <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
               {searchQuery || selectedCategory !== 'ALL' || selectedState !== 'ALL'
-                ? 'No memory records match the selected filters. Try broadening your search or resetting filters.'
-                : 'No structured facts logged yet. Record client requirements, pain points, and decision makers from calls or add one directly.'}
+                ? 'No memory records match the selected filters. Try resetting filters.'
+                : 'No structured facts logged yet. Record client requirements, pain points, and decision makers.'}
             </p>
           </div>
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 transition-colors shadow-xs"
           >
             <Plus className="h-3.5 w-3.5" />
             Add First Memory Fact
@@ -406,7 +372,7 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
           {memories.map((m) => {
             const cat = CATEGORY_LABELS[m.category] || {
               label: m.category,
-              color: 'text-slate-400 bg-slate-800 border-slate-700',
+              color: 'text-slate-700 bg-slate-100 border-slate-200',
             };
             const isConfirmed = m.verificationState === 'CONFIRMED';
             const isInferred = m.verificationState === 'INFERRED';
@@ -416,39 +382,38 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
               <div
                 key={m.id}
                 className={cn(
-                  'rounded-xl border p-4 transition-all flex flex-col justify-between space-y-3',
+                  'rounded-2xl border p-4.5 transition-all flex flex-col justify-between space-y-3 shadow-xs',
                   isRejected
-                    ? 'border-rose-950/60 bg-rose-950/10 opacity-75'
-                    : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'
+                    ? 'border-rose-200 bg-rose-50/40 opacity-75'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
                 )}
               >
-                {/* Header: Key & Status Badges */}
                 <div>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={cn('rounded border px-2 py-0.5 text-[10px] font-semibold', cat.color)}>
+                      <span className={cn('rounded-lg border px-2 py-0.5 text-[10px] font-bold', cat.color)}>
                         {cat.label}
                       </span>
 
                       {isConfirmed && (
-                        <span className="rounded border px-2 py-0.5 text-[10px] font-semibold border-emerald-500/30 bg-emerald-950/30 text-emerald-400 flex items-center gap-1">
+                        <span className="rounded-lg border px-2 py-0.5 text-[10px] font-bold border-emerald-200 bg-emerald-50 text-emerald-700 flex items-center gap-1">
                           <CheckCircle2 className="h-3 w-3" /> CONFIRMED
                         </span>
                       )}
 
                       {isInferred && (
-                        <span className="rounded border px-2 py-0.5 text-[10px] font-semibold border-amber-500/30 bg-amber-950/30 text-amber-400 flex items-center gap-1">
+                        <span className="rounded-lg border px-2 py-0.5 text-[10px] font-bold border-amber-200 bg-amber-50 text-amber-700 flex items-center gap-1">
                           <HelpCircle className="h-3 w-3" /> INFERRED
                         </span>
                       )}
 
                       {isRejected && (
-                        <span className="rounded border px-2 py-0.5 text-[10px] font-semibold border-rose-500/30 bg-rose-950/30 text-rose-400 flex items-center gap-1">
+                        <span className="rounded-lg border px-2 py-0.5 text-[10px] font-bold border-rose-200 bg-rose-50 text-rose-700 flex items-center gap-1">
                           <XCircle className="h-3 w-3" /> REJECTED
                         </span>
                       )}
 
-                      <span className="text-[10px] text-slate-500 font-mono">
+                      <span className="text-[10px] text-slate-400 font-mono">
                         Source: {m.sourceType}
                       </span>
                     </div>
@@ -457,7 +422,7 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => setEditingMemory(m)}
-                        className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+                        className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
                         title="Edit fact"
                       >
                         <Edit2 className="h-3.5 w-3.5" />
@@ -466,7 +431,7 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
                       {!isRejected && (
                         <button
                           onClick={() => handleReject(m)}
-                          className="rounded p-1 text-slate-400 hover:bg-rose-950/50 hover:text-rose-400 transition-colors"
+                          className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
                           title="Reject this fact"
                         >
                           <XCircle className="h-3.5 w-3.5" />
@@ -478,8 +443,8 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
                   {/* Fact Key */}
                   <h4
                     className={cn(
-                      'text-sm font-bold mt-2',
-                      isRejected ? 'text-slate-400 line-through' : 'text-slate-100'
+                      'text-xs font-bold mt-2.5',
+                      isRejected ? 'text-slate-400 line-through' : 'text-slate-900'
                     )}
                   >
                     {m.key}
@@ -488,8 +453,8 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
                   {/* Fact Value */}
                   <p
                     className={cn(
-                      'text-xs mt-1 leading-relaxed whitespace-pre-wrap',
-                      isRejected ? 'text-slate-500 line-through italic' : 'text-slate-300'
+                      'text-xs mt-1 leading-relaxed whitespace-pre-wrap font-medium',
+                      isRejected ? 'text-slate-400 line-through italic' : 'text-slate-700'
                     )}
                   >
                     {m.value}
@@ -497,8 +462,8 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
                 </div>
 
                 {/* Footer Timestamp */}
-                <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500">
-                  <span>Last updated: {new Date(m.updatedAt).toLocaleString()}</span>
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+                  <span>Last updated: {new Date(m.updatedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
                   {m.confidence && (
                     <span>Confidence: {(m.confidence * 100).toFixed(0)}%</span>
                   )}
@@ -511,16 +476,16 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
 
       {/* ADD FACT MODAL */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-lg rounded-xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-indigo-400" />
-                <h3 className="text-sm font-bold text-slate-100">Add Customer Memory Fact</h3>
+                <Sparkles className="h-5 w-5 text-indigo-600" />
+                <h3 className="text-sm font-bold text-slate-900">Add Customer Memory Fact</h3>
               </div>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -528,11 +493,11 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
 
             <form onSubmit={handleAddSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold">Category</label>
+                <label className="block text-slate-700 mb-1 font-bold">Category</label>
                 <select
                   value={formCategory}
                   onChange={(e) => setFormCategory(e.target.value)}
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-slate-200 focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-indigo-600 focus:outline-none"
                 >
                   {categoryKeys.map((k) => (
                     <option key={k} value={k}>
@@ -543,8 +508,8 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold">
-                  Topic / Key <span className="text-rose-400">*</span>
+                <label className="block text-slate-700 mb-1 font-bold">
+                  Topic / Key <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -552,13 +517,13 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
                   placeholder="e.g. Online Store Requirement, Budget Range, Tech Stack"
                   value={formKey}
                   onChange={(e) => setFormKey(e.target.value)}
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-slate-200 focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-indigo-600 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold">
-                  Fact Details / Value <span className="text-rose-400">*</span>
+                <label className="block text-slate-700 mb-1 font-bold">
+                  Fact Details / Value <span className="text-rose-500">*</span>
                 </label>
                 <textarea
                   required
@@ -566,29 +531,29 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
                   placeholder="e.g. Needs around 2,000 products catalog with WhatsApp order notifications."
                   value={formValue}
                   onChange={(e) => setFormValue(e.target.value)}
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-slate-200 focus:border-indigo-500 focus:outline-none leading-relaxed"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-indigo-600 focus:outline-none leading-relaxed"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-400 mb-1 font-semibold">Verification State</label>
+                  <label className="block text-slate-700 mb-1 font-bold">Verification State</label>
                   <select
                     value={formState}
                     onChange={(e) => setFormState(e.target.value as any)}
-                    className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-slate-200 focus:border-indigo-500 focus:outline-none"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-indigo-600 focus:outline-none"
                   >
-                    <option value="CONFIRMED">CONFIRMED (Explicitly Stated)</option>
-                    <option value="INFERRED">INFERRED (Derived/Probable)</option>
+                    <option value="CONFIRMED">CONFIRMED (Fact)</option>
+                    <option value="INFERRED">INFERRED (Tentative)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 mb-1 font-semibold">Source</label>
+                  <label className="block text-slate-700 mb-1 font-bold">Source</label>
                   <select
                     value={formSource}
                     onChange={(e) => setFormSource(e.target.value)}
-                    className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-slate-200 focus:border-indigo-500 focus:outline-none"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-indigo-600 focus:outline-none"
                   >
                     <option value="MANUAL">MANUAL ENTRY</option>
                     <option value="CALL">CALL</option>
@@ -599,18 +564,18 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="rounded-lg px-3.5 py-1.5 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                  className="rounded-xl px-3.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100 font-semibold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors disabled:opacity-50"
+                  className="rounded-xl bg-indigo-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-xs"
                 >
                   {submitting ? 'Saving...' : 'Save Fact'}
                 </button>
@@ -622,16 +587,16 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
 
       {/* EDIT FACT MODAL */}
       {editingMemory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-lg rounded-xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <Edit2 className="h-4 w-4 text-indigo-400" />
-                <h3 className="text-sm font-bold text-slate-100">Edit Customer Memory Fact</h3>
+                <Edit2 className="h-4 w-4 text-indigo-600" />
+                <h3 className="text-sm font-bold text-slate-900">Edit Customer Memory Fact</h3>
               </div>
               <button
                 onClick={() => setEditingMemory(null)}
-                className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -639,13 +604,13 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
 
             <form onSubmit={handleEditSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold">Category</label>
+                <label className="block text-slate-700 mb-1 font-bold">Category</label>
                 <select
                   value={editingMemory.category}
                   onChange={(e) =>
                     setEditingMemory({ ...editingMemory, category: e.target.value })
                   }
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-slate-200 focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-indigo-600 focus:outline-none"
                 >
                   {categoryKeys.map((k) => (
                     <option key={k} value={k}>
@@ -656,7 +621,7 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold">Topic / Key</label>
+                <label className="block text-slate-700 mb-1 font-bold">Topic / Key</label>
                 <input
                   type="text"
                   required
@@ -664,12 +629,12 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
                   onChange={(e) =>
                     setEditingMemory({ ...editingMemory, key: e.target.value })
                   }
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-slate-200 focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-indigo-600 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold">Fact Details / Value</label>
+                <label className="block text-slate-700 mb-1 font-bold">Fact Details / Value</label>
                 <textarea
                   required
                   rows={3}
@@ -677,12 +642,12 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
                   onChange={(e) =>
                     setEditingMemory({ ...editingMemory, value: e.target.value })
                   }
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-slate-200 focus:border-indigo-500 focus:outline-none leading-relaxed"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-indigo-600 focus:outline-none leading-relaxed"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold">Verification State</label>
+                <label className="block text-slate-700 mb-1 font-bold">Verification State</label>
                 <select
                   value={editingMemory.verificationState}
                   onChange={(e) =>
@@ -691,7 +656,7 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
                       verificationState: e.target.value as any,
                     })
                   }
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-slate-200 focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-indigo-600 focus:outline-none"
                 >
                   <option value="CONFIRMED">CONFIRMED (Fact)</option>
                   <option value="INFERRED">INFERRED (Tentative)</option>
@@ -699,18 +664,18 @@ export const CustomerMemoryTab: React.FC<CustomerMemoryTabProps> = ({
                 </select>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setEditingMemory(null)}
-                  className="rounded-lg px-3.5 py-1.5 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                  className="rounded-xl px-3.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100 font-semibold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors disabled:opacity-50"
+                  className="rounded-xl bg-indigo-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-xs"
                 >
                   {submitting ? 'Updating...' : 'Save Changes'}
                 </button>

@@ -20,13 +20,12 @@ import {
   User,
   Building,
   ChevronRight,
-  TrendingUp,
+  ChevronDown,
   Target,
   ShieldCheck,
   Coffee,
-  X,
-  Plus,
   Bell,
+  Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BeforeCallBriefModal } from '@/components/calls/BeforeCallBriefModal';
@@ -46,6 +45,7 @@ export const TodayCockpit: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  const [showAiWhyDetails, setShowAiWhyDetails] = useState<boolean>(false);
 
   // Modals state
   const [activeLead, setActiveLead] = useState<any>(null);
@@ -148,17 +148,16 @@ export const TodayCockpit: React.FC = () => {
 
   if (loading && !overview) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-24 w-full rounded-2xl skeleton-shimmer border border-slate-800" />
-        <div className="h-56 w-full rounded-2xl skeleton-shimmer border border-slate-800" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="h-48 rounded-2xl skeleton-shimmer border border-slate-800" />
-          <div className="h-48 rounded-2xl skeleton-shimmer border border-slate-800" />
+      <div className="space-y-5 animate-pulse">
+        <div className="h-20 w-full rounded-2xl bg-white border border-slate-200" />
+        <div className="h-56 w-full rounded-2xl bg-white border border-slate-200" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="h-44 rounded-2xl bg-white border border-slate-200" />
+          <div className="h-44 rounded-2xl bg-white border border-slate-200" />
         </div>
       </div>
     );
   }
-
 
   const targetPace = overview?.targetPace;
   const currentBlock = overview?.currentBlock;
@@ -168,16 +167,22 @@ export const TodayCockpit: React.FC = () => {
   const hotLeads = callsData?.hotLeads || [];
   const counts = overview?.counts || {};
 
+  // Target Calculations
+  const targetAmount = Number(targetPace?.targetAmount || 100000);
+  const achievedAmount = Number(targetPace?.achievedAmount || 0);
+  const leftAmount = Math.max(0, targetAmount - achievedAmount);
+  const progressPercent = Math.min(100, Math.round((achievedAmount / (targetAmount || 1)) * 100));
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* 1. TOP HEADER WITH REAL-TIME CLOCK, TARGET STATUS, AND ENERGY SELECTOR */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-slate-900/70 p-5 sm:p-6 rounded-2xl border border-slate-800/80 backdrop-blur-sm shadow-xl">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs">
         <div>
-          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-wider">
-              Sales Command Center
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wider">
+              Today&apos;s Sales Assistant
             </span>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-xs text-slate-500 font-medium">
               {currentTime.toLocaleDateString('en-IN', {
                 weekday: 'short',
                 day: 'numeric',
@@ -185,8 +190,8 @@ export const TodayCockpit: React.FC = () => {
                 year: 'numeric',
               })}
             </span>
-            <span className="h-1 w-1 rounded-full bg-slate-700" />
-            <span className="text-xs font-mono font-semibold text-emerald-400">
+            <span className="h-1 w-1 rounded-full bg-slate-300" />
+            <span className="text-xs font-mono font-bold text-emerald-600">
               {currentTime.toLocaleTimeString('en-IN', {
                 hour: '2-digit',
                 minute: '2-digit',
@@ -194,54 +199,59 @@ export const TodayCockpit: React.FC = () => {
               })}
             </span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-            James&apos;s Daily Sales Cockpit
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            Sales Action Center
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Deterministic time scheduling, smart priority ranking, and real-time next-best-action intelligence.
+          <p className="text-xs text-slate-500 mt-0.5">
+            Your personalized guide: who to call, what to pitch, and how to reach monthly targets.
           </p>
         </div>
 
         {/* Target Status & Energy Level Controls */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          {/* Target Pace Badge */}
-          {targetPace && (
-            <div
-              className={cn(
-                'px-3.5 py-2 rounded-xl border text-xs flex items-center gap-2.5 transition',
-                targetPace.mode === 'RECOVERY'
-                  ? 'bg-amber-950/40 border-amber-500/30 text-amber-300'
-                  : targetPace.mode === 'AHEAD'
-                  ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300'
-                  : 'bg-indigo-950/40 border-indigo-500/30 text-indigo-300'
-              )}
-            >
-              <Target className="w-4 h-4 shrink-0" />
-              <div>
-                <div className="font-bold uppercase tracking-wider text-[10px]">
-                  {targetPace.statusLabel}
-                </div>
-                <div className="text-[11px] opacity-90 font-mono">
-                  ₹{Number(targetPace.achievedAmount).toLocaleString('en-IN')} / ₹
-                  {Number(targetPace.targetAmount).toLocaleString('en-IN')} ({targetPace.progressPercent}%)
-                </div>
+          {/* Simple Target Progress Card */}
+          <div className="px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/80 text-xs flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700">
+              <Target className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-800 uppercase tracking-wider text-[10px]">
+                  Monthly Target
+                </span>
+                <span
+                  className={cn(
+                    'px-1.5 py-0.2 rounded text-[10px] font-bold',
+                    progressPercent >= 75
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : progressPercent >= 40
+                      ? 'bg-amber-100 text-amber-800'
+                      : 'bg-rose-100 text-rose-800'
+                  )}
+                >
+                  {progressPercent >= 75 ? '🟢 On Track' : progressPercent >= 40 ? '🟡 Catch Up' : '🔴 Behind'}
+                </span>
+              </div>
+              <div className="text-[11px] font-mono text-slate-600 mt-0.5">
+                <strong className="text-slate-900">₹{achievedAmount.toLocaleString('en-IN')}</strong> / ₹
+                {targetAmount.toLocaleString('en-IN')} ({progressPercent}%) • ₹{leftAmount.toLocaleString('en-IN')} left
               </div>
             </div>
-          )}
+          </div>
 
           {/* Energy Mode Switcher */}
-          <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
             <button
               onClick={() => setEnergy('HIGH')}
               className={cn(
                 'px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition font-semibold text-[11px]',
                 energy === 'HIGH'
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-white text-amber-800 shadow-xs border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
               )}
               title="High Energy: Focus on fresh calling, closing & demos"
             >
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <Zap className="w-3.5 h-3.5 text-amber-600" />
               High
             </button>
             <button
@@ -249,12 +259,12 @@ export const TodayCockpit: React.FC = () => {
               className={cn(
                 'px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition font-semibold text-[11px]',
                 energy === 'NORMAL'
-                  ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-white text-indigo-800 shadow-xs border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
               )}
               title="Normal Energy: Balanced follow-ups and calls"
             >
-              <Smile className="w-3.5 h-3.5 text-indigo-400" />
+              <Smile className="w-3.5 h-3.5 text-indigo-600" />
               Normal
             </button>
             <button
@@ -262,90 +272,146 @@ export const TodayCockpit: React.FC = () => {
               className={cn(
                 'px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition font-semibold text-[11px]',
                 energy === 'LOW'
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-white text-emerald-800 shadow-xs border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
               )}
               title="Low Energy: Low friction admin, WhatsApp and notes"
             >
-              <BatteryCharging className="w-3.5 h-3.5 text-emerald-400" />
+              <BatteryCharging className="w-3.5 h-3.5 text-emerald-600" />
               Low
             </button>
           </div>
         </div>
       </div>
 
-      {/* 2. SMART REMINDERS ALERT BANNER (IF ACTIVE) */}
+      {/* 2. SMART SALES REMINDERS (EXPANDABLE WITH 5-WAY ACTIONS) */}
       {reminders.length > 0 && (
-        <div className="space-y-2">
-          {reminders.slice(0, 2).map((r: any) => (
-            <div
-              key={r.id}
-              className={cn(
-                'p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-md transition',
-                r.level === 'CRITICAL'
-                  ? 'bg-rose-950/40 border-rose-500/40 text-rose-200'
-                  : r.level === 'IMPORTANT'
-                  ? 'bg-amber-950/40 border-amber-500/40 text-amber-200'
-                  : 'bg-indigo-950/40 border-indigo-500/30 text-indigo-200'
-              )}
-            >
-              <div className="flex items-start sm:items-center gap-2.5">
-                <AlertTriangle
-                  className={cn(
-                    'w-4 h-4 mt-0.5 sm:mt-0 shrink-0',
-                    r.level === 'CRITICAL' ? 'text-rose-400 animate-bounce' : 'text-amber-400'
-                  )}
-                />
-                <div>
-                  <span className="font-bold">{r.title}:</span>{' '}
-                  <span className="opacity-90">{r.message}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                <button
-                  onClick={() => handleReminderAction(r.id, 'SNOOZE')}
-                  className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-[11px] font-medium transition"
-                >
-                  Snooze 15m
-                </button>
-                <button
-                  onClick={() => handleReminderAction(r.id, 'COMPLETE')}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/40 text-[11px] font-semibold transition flex items-center gap-1"
-                >
-                  <CheckCircle2 className="w-3 h-3" /> Done
-                </button>
-              </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+            <div className="flex items-center gap-2">
+              <Bell className="w-4 h-4 text-indigo-600" />
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Smart Sales Reminders ({reminders.length})
+              </h3>
             </div>
-          ))}
+            <span className="text-[10px] text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+              Prioritized by Urgency
+            </span>
+          </div>
+
+          <div className="space-y-2.5">
+            {reminders.slice(0, 4).map((r: any) => {
+              const isUrgent = r.level === 'CRITICAL' || new Date(r.remindAt) <= currentTime;
+              return (
+                <div
+                  key={r.id}
+                  className={cn(
+                    'p-3.5 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs transition shadow-2xs',
+                    isUrgent
+                      ? 'bg-rose-50/70 border-rose-200 text-rose-950'
+                      : 'bg-slate-50/80 border-slate-200 text-slate-900'
+                  )}
+                >
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <AlertTriangle
+                      className={cn(
+                        'w-4 h-4 mt-0.5 shrink-0',
+                        isUrgent ? 'text-rose-600 animate-pulse' : 'text-amber-600'
+                      )}
+                    />
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-slate-900">{r.title}</span>
+                        {r.lead?.business?.name && (
+                          <span className="text-[11px] font-semibold text-indigo-700 bg-indigo-50/80 px-1.5 py-0.2 rounded border border-indigo-100">
+                            {r.lead.business.name}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          ⏰ {new Date(r.remindAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      {r.message && (
+                        <p className="text-[11px] text-slate-600 line-clamp-1">{r.message}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 5-WAY ACTIONS */}
+                  <div className="flex items-center gap-1.5 self-end md:self-center shrink-0 flex-wrap">
+                    {r.leadId && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setActiveLead(r.lead || { id: r.leadId, title: r.title });
+                            setIsBriefOpen(true);
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition flex items-center gap-1 shadow-xs"
+                          title="Call Lead"
+                        >
+                          <PhoneCall className="w-3 h-3" /> Call
+                        </button>
+                        <button
+                          onClick={() => setWhatsAppTarget({ leadId: r.leadId, category: 'DAY_1_FOLLOWUP' })}
+                          className="px-2 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold text-[11px] transition flex items-center gap-1"
+                          title="Send WhatsApp"
+                        >
+                          <MessageSquare className="w-3 h-3 text-emerald-600" /> WhatsApp
+                        </button>
+                        <Link
+                          href={`/leads/${r.leadId}`}
+                          className="px-2 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-[11px] transition"
+                        >
+                          Open
+                        </Link>
+                      </>
+                    )}
+                    <button
+                      onClick={() => handleReminderAction(r.id, 'SNOOZE')}
+                      className="px-2 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px] font-medium transition"
+                      title="Snooze 15 minutes"
+                    >
+                      Snooze
+                    </button>
+                    <button
+                      onClick={() => handleReminderAction(r.id, 'COMPLETE')}
+                      className="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 text-[11px] font-bold transition flex items-center gap-1 shadow-xs"
+                      title="Mark as Done"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Done
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
       {/* 3. NOW & NEXT DUAL HERO SECTION */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* WHAT SHOULD I DO NOW? (MASTER ACTION CARD - 7 cols) */}
-        <div className="lg:col-span-7 rounded-2xl border-2 border-indigo-500/30 bg-gradient-to-br from-indigo-950/30 via-slate-900/60 to-slate-950 p-5 sm:p-6 shadow-2xl relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute -top-12 -right-12 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-
+        <div className="lg:col-span-7 rounded-2xl border-2 border-indigo-200 bg-white p-5 sm:p-6 shadow-sm relative overflow-hidden flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-2">
-                <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-ping" />
-                <span className="text-[11px] font-black uppercase tracking-wider text-indigo-400 flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5" /> What Should I Do Now?
+                <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping" />
+                <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700 flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                  What Should I Do Now? / Abhi Kya Karna Hai?
                 </span>
               </div>
 
               <div className="flex items-center gap-2">
                 {nextAction?.badge && (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 border border-indigo-500/40 text-indigo-300">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 border border-indigo-200 text-indigo-800">
                     {nextAction.badge}
                   </span>
                 )}
                 <button
                   onClick={fetchNextAction}
                   disabled={actionLoading}
-                  className="p-1 text-slate-400 hover:text-slate-200 transition"
+                  className="p-1 text-slate-400 hover:text-slate-700 transition"
                   title="Recalculate Next Action"
                 >
                   <RefreshCw className={cn('w-3.5 h-3.5', actionLoading && 'animate-spin')} />
@@ -354,42 +420,74 @@ export const TodayCockpit: React.FC = () => {
             </div>
 
             {nextAction ? (
-              <div className="space-y-3.5">
-                <div>
-                  <h2 className="text-lg sm:text-xl font-black text-white leading-tight">
-                    {nextAction.title}
-                  </h2>
-                  <p className="text-xs text-slate-300 mt-1 font-medium leading-relaxed">
-                    <span className="text-indigo-300 font-semibold">Why:</span> {nextAction.reason}
-                  </p>
+              <div className="space-y-3">
+                {/* WHO */}
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-black text-slate-900">
+                        🔥 {nextAction.title}
+                      </span>
+                    </div>
+                    {nextAction.phone && (
+                      <span className="font-mono text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                        {nextAction.phone}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* WHY */}
+                  <div className="text-slate-700 leading-relaxed">
+                    <span className="font-bold text-slate-900 uppercase text-[10px] tracking-wider block mb-0.5">
+                      Why this lead right now?
+                    </span>
+                    <p className="text-xs text-slate-700 font-medium">{nextAction.reason}</p>
+                  </div>
+
+                  {/* DO THIS NOW & GOAL */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-200">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block">Do this now:</span>
+                      <span className="font-semibold text-slate-900">{nextAction.objective}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block">Goal:</span>
+                      <span className="font-semibold text-indigo-700">{nextAction.nextStep}</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-2 text-xs">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-slate-400 font-medium">Objective:</span>
-                    <span className="text-slate-200 font-semibold text-right">{nextAction.objective}</span>
+                {/* Collapsible detail */}
+                <button
+                  type="button"
+                  onClick={() => setShowAiWhyDetails(!showAiWhyDetails)}
+                  className="text-[11px] text-slate-500 hover:text-slate-800 flex items-center gap-1 font-medium"
+                >
+                  <span>Why this is recommended</span>
+                  <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showAiWhyDetails && 'rotate-180')} />
+                </button>
+
+                {showAiWhyDetails && (
+                  <div className="p-3 rounded-lg bg-indigo-50/50 border border-indigo-100 text-[11px] text-indigo-900 space-y-1">
+                    <p>
+                      <strong>Timing & Relevance:</strong> Calculated using recent customer reactions, target pace,
+                      and scheduled follow-up commitments.
+                    </p>
+                    <p className="text-indigo-700">
+                      Estimated time to complete: ~{nextAction.estimatedMinutes} mins.
+                    </p>
                   </div>
-                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-900">
-                    <span className="text-slate-400 font-medium">Estimated Time:</span>
-                    <span className="text-indigo-400 font-mono font-bold">
-                      ~{nextAction.estimatedMinutes} minutes
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-900">
-                    <span className="text-slate-400 font-medium">Recommended Next:</span>
-                    <span className="text-slate-300 text-right">{nextAction.nextStep}</span>
-                  </div>
-                </div>
+                )}
               </div>
             ) : (
-              <div className="py-8 text-center text-xs text-slate-400">
+              <div className="py-8 text-center text-xs text-slate-500">
                 Evaluating schedule & pipeline priorities...
               </div>
             )}
           </div>
 
           {/* Action Execution CTAs */}
-          <div className="mt-5 pt-4 border-t border-slate-800/80 flex flex-wrap items-center gap-2.5">
+          <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
             {nextAction?.actionType === 'CALL' || nextAction?.actionType === 'CLOSING' ? (
               <>
                 <button
@@ -402,19 +500,19 @@ export const TodayCockpit: React.FC = () => {
                     });
                     setIsBriefOpen(true);
                   }}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition flex items-center gap-2"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/20 transition flex items-center gap-2 active:scale-95"
                 >
-                  <PhoneCall className="w-3.5 h-3.5" /> Call Now (Open Brief)
+                  <PhoneCall className="w-3.5 h-3.5" /> Call Now
                 </button>
 
                 {nextAction.leadId && (
                   <button
                     onClick={() => {
-                      setWhatsAppTarget({ leadId: nextAction.leadId!, category: 'VALUE_DROP' });
+                      setWhatsAppTarget({ leadId: nextAction.leadId!, category: 'DAY_1_FOLLOWUP' });
                     }}
-                    className="px-3.5 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 font-semibold text-xs transition flex items-center gap-1.5"
+                    className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold text-xs transition flex items-center gap-1.5"
                   >
-                    <MessageSquare className="w-3.5 h-3.5" /> Send WhatsApp
+                    <MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> Send WhatsApp
                   </button>
                 )}
               </>
@@ -425,7 +523,7 @@ export const TodayCockpit: React.FC = () => {
                     setActiveDemoId(nextAction.leadId || '');
                     setIsDemoBriefOpen(true);
                   }}
-                  className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-600/30 transition flex items-center gap-2"
+                  className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs shadow-md shadow-violet-600/20 transition flex items-center gap-2"
                 >
                   <Play className="w-3.5 h-3.5" /> Open Demo Plan
                 </button>
@@ -434,19 +532,19 @@ export const TodayCockpit: React.FC = () => {
                     setActiveDemoId(nextAction.leadId || '');
                     setIsLiveDemoOpen(true);
                   }}
-                  className="px-3.5 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 font-semibold text-xs transition flex items-center gap-1.5"
+                  className="px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-800 font-semibold text-xs transition flex items-center gap-1.5"
                 >
-                  <Sparkles className="w-3.5 h-3.5" /> Launch Live Demo
+                  <Sparkles className="w-3.5 h-3.5 text-purple-600" /> Launch Live Demo
                 </button>
               </>
             ) : nextAction?.actionType === 'LUNCH' ? (
               <div className="flex items-center justify-between w-full">
-                <span className="text-xs text-amber-300 font-medium flex items-center gap-1.5">
-                  <Coffee className="w-4 h-4 text-amber-400" /> Protected lunch time. Step away & rest.
+                <span className="text-xs text-amber-800 font-medium flex items-center gap-1.5">
+                  <Coffee className="w-4 h-4 text-amber-600" /> Protected lunch time. Step away & rest.
                 </span>
                 <button
                   onClick={() => setOverrideLunch(true)}
-                  className="text-[11px] text-slate-400 hover:text-slate-200 underline transition"
+                  className="text-[11px] text-slate-500 hover:text-slate-800 underline transition"
                 >
                   Override & work anyway
                 </button>
@@ -456,79 +554,95 @@ export const TodayCockpit: React.FC = () => {
             {nextAction?.leadId && (
               <Link
                 href={`/leads/${nextAction.leadId}`}
-                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs transition ml-auto flex items-center gap-1"
+                className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition ml-auto flex items-center gap-1"
               >
-                Profile <ArrowRight className="w-3 h-3" />
+                Open Lead <ArrowRight className="w-3 h-3" />
               </Link>
             )}
           </div>
         </div>
 
-        {/* CURRENT BLOCK & NEXT ACTIVITY (5 cols) */}
+        {/* RIGHT NOW & NEXT ACTIVITY (5 cols) */}
         <div className="lg:col-span-5 space-y-4 flex flex-col justify-between">
-          {/* Current Block Card */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-lg relative overflow-hidden">
+          {/* RIGHT NOW Card */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs relative overflow-hidden">
             <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                Current Work Block
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                <Clock className="w-3 h-3 text-indigo-600" /> Right Now
               </span>
-              {currentBlock?.isProtected ? (
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3" /> Protected Block
-                </span>
-              ) : (
-                <span className="text-[11px] font-mono text-indigo-400 font-semibold">
-                  {currentBlock?.timeRangeFormatted || 'Active Block'}
-                </span>
-              )}
+              <span className="text-[11px] font-mono text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                {currentBlock?.timeRangeFormatted || 'Active Sales Window'}
+              </span>
             </div>
 
-            <h3 className="text-base font-bold text-white mb-1">
-              {currentBlock?.title || 'Active Sales Window'}
+            <h3 className="text-base font-bold text-slate-900 mb-1">
+              {currentBlock?.title === 'CALLING'
+                ? '📞 FRESH CALLING & DISCOVERY'
+                : currentBlock?.title === 'FOLLOW_UP'
+                ? '📞 FOLLOW-UP CALLS'
+                : currentBlock?.title === 'DEMO'
+                ? '🎯 DEMO PREPARATION & PRESENTATION'
+                : currentBlock?.title || 'Active Work Block'}
             </h3>
-            <p className="text-xs text-slate-400 mb-3">{currentBlock?.goal || 'Pipeline progression'}</p>
+            <p className="text-xs text-slate-600 mb-3">
+              {currentBlock?.goal || 'Connect with scheduled prospects and advance qualified deals.'}
+            </p>
 
-            <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs">
-              <div className="flex items-center gap-1.5 text-slate-300">
-                <Clock className="w-3.5 h-3.5 text-indigo-400" />
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+              <div className="flex items-center gap-1.5 text-slate-600">
                 <span>Time Remaining:</span>
+                <strong className="text-emerald-700 font-mono">
+                  {currentBlock?.remainingFormatted || '30m'}
+                </strong>
               </div>
-              <span className="font-mono font-bold text-emerald-400">
-                {currentBlock?.remainingFormatted || 'Active'}
-              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (hotLeads.length > 0) {
+                    setActiveLead(hotLeads[0]);
+                    setIsBriefOpen(true);
+                  } else if (nextAction?.leadId) {
+                    setActiveLead({ id: nextAction.leadId, title: nextAction.title });
+                    setIsBriefOpen(true);
+                  }
+                }}
+                className="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold hover:bg-indigo-100 text-[11px] border border-indigo-200 transition"
+              >
+                Start Calls →
+              </button>
             </div>
           </div>
 
-          {/* Next Scheduled Activity Card */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-lg">
+          {/* NEXT COMMITMENT CARD */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
             <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                Next Commitment
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                Next Up
               </span>
               {nextActivity && (
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
                   in {nextActivity.countdownText}
                 </span>
               )}
             </div>
 
             {nextActivity ? (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 <div>
-                  <h4 className="text-sm font-bold text-white">{nextActivity.title}</h4>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Scheduled at {nextActivity.time} • {nextActivity.contactName || 'Contact'}
+                  <h4 className="text-sm font-bold text-slate-900">{nextActivity.title}</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    ⏰ {nextActivity.time} • {nextActivity.contactName || 'Prospect'}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2 border-t border-slate-800/80">
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
                   {nextActivity.type === 'DEMO' ? (
                     <button
                       onClick={() => {
                         setActiveDemoId(nextActivity.id);
                         setIsDemoBriefOpen(true);
                       }}
-                      className="px-3 py-1.5 rounded-lg bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/30 text-sky-300 font-semibold text-xs transition"
+                      className="px-3 py-1.5 rounded-lg bg-violet-600 text-white font-bold text-xs hover:bg-violet-500 transition"
                     >
                       View Demo Plan
                     </button>
@@ -538,7 +652,7 @@ export const TodayCockpit: React.FC = () => {
                         setActiveLead({ id: nextActivity.leadId, title: nextActivity.title });
                         setIsBriefOpen(true);
                       }}
-                      className="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 font-semibold text-xs transition"
+                      className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-500 transition"
                     >
                       Call Lead
                     </button>
@@ -547,7 +661,7 @@ export const TodayCockpit: React.FC = () => {
                   {nextActivity.leadId && (
                     <Link
                       href={`/leads/${nextActivity.leadId}`}
-                      className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition"
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
                     >
                       Open Lead
                     </Link>
@@ -555,228 +669,290 @@ export const TodayCockpit: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="text-xs text-slate-500 py-3">
+              <div className="text-xs text-slate-500 py-2">
                 No upcoming commitments scheduled for today.
               </div>
             )}
           </div>
-
-          {/* TWO-HOUR SALES PULSE COMPACT CARD */}
-          {pulse?.currentBlock && (
-            <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-950/20 via-slate-900/60 to-slate-950 p-4 shadow-lg flex flex-col justify-between">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-300">
-                    Two-Hour Sales Pulse ({pulse.currentBlock.blockTitle})
-                  </span>
-                </div>
-                <Link
-                  href="/insights"
-                  className="text-[10px] text-violet-400 hover:text-violet-300 flex items-center gap-1 font-semibold"
-                >
-                  Deep Dive <ChevronRight className="w-3 h-3" />
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 text-center my-1.5">
-                <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800">
-                  <div className="text-sm font-bold text-slate-200">{pulse.currentBlock.activity.totalCalls}</div>
-                  <div className="text-[9px] text-slate-500 uppercase">Calls Logged</div>
-                </div>
-                <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800">
-                  <div className="text-sm font-bold text-sky-400">{pulse.currentBlock.connectionRate}%</div>
-                  <div className="text-[9px] text-slate-500 uppercase">Connect Rate</div>
-                </div>
-                <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800">
-                  <div className="text-sm font-bold text-emerald-400">{pulse.currentBlock.interestRate}%</div>
-                  <div className="text-[9px] text-slate-500 uppercase">Interest Rate</div>
-                </div>
-              </div>
-
-              <div className="text-[11px] text-slate-300 flex items-center gap-1.5 pt-2 border-t border-slate-800/80 mt-1">
-                <Zap className="w-3 h-3 text-amber-400 shrink-0" />
-                <span className="truncate">{pulse.nextBlockFocus || 'Maintain high outreach tempo'}</span>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* 4. METRICS ROW */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-3.5">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Calls Made</span>
-          <span className="text-xl font-black text-slate-200 mt-1 block">{counts.todayCalls || 0}</span>
-          <span className="text-[10px] text-slate-500">Today&apos;s activity</span>
+      {/* 4. CURRENT 2-HOUR SALES PULSE & PREVIOUS BLOCK */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* CURRENT 2-HOUR SALES PULSE (7 cols) */}
+        <div className="lg:col-span-7 rounded-2xl border border-indigo-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700">
+                <Zap className="w-4 h-4" />
+              </span>
+              <div>
+                <h3 className="text-sm font-black text-slate-900 tracking-tight">
+                  CURRENT 2-HOUR SALES PULSE
+                </h3>
+                <span className="text-[11px] font-mono text-indigo-700 font-bold">
+                  {pulse?.currentBlock?.blockTitle || 'Active Sales Window'}
+                </span>
+              </div>
+            </div>
+
+            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Live Pulse
+            </span>
+          </div>
+
+          {/* Counts Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <span className="text-[10px] font-bold text-slate-500 uppercase block">Calls Made</span>
+              <span className="text-xl font-black text-slate-900 mt-0.5 block">
+                {pulse?.currentBlock?.activity?.totalCalls ?? 0}
+              </span>
+            </div>
+            <div className="p-3 rounded-xl bg-indigo-50/60 border border-indigo-100">
+              <span className="text-[10px] font-bold text-indigo-700 uppercase block">Answered</span>
+              <span className="text-xl font-black text-indigo-900 mt-0.5 block">
+                {pulse?.currentBlock?.activity?.connected ?? 0}
+              </span>
+            </div>
+            <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-100">
+              <span className="text-[10px] font-bold text-emerald-700 uppercase block">Interested</span>
+              <span className="text-xl font-black text-emerald-900 mt-0.5 block">
+                {pulse?.currentBlock?.activity?.interested ?? 0}
+              </span>
+            </div>
+            <div className="p-3 rounded-xl bg-violet-50/60 border border-violet-100">
+              <span className="text-[10px] font-bold text-violet-700 uppercase block">Demos</span>
+              <span className="text-xl font-black text-violet-900 mt-0.5 block">
+                {pulse?.currentBlock?.activity?.demosScheduled ?? 0}
+              </span>
+            </div>
+          </div>
+
+          {/* Rates */}
+          <div className="flex items-center gap-4 text-xs font-semibold text-slate-600 pt-1">
+            <span>
+              Connection Rate:{' '}
+              <strong className="text-indigo-700 font-mono">
+                {pulse?.currentBlock?.connectionRate ?? 0}%
+              </strong>
+            </span>
+            <span className="text-slate-300">•</span>
+            <span>
+              Interest Rate:{' '}
+              <strong className="text-emerald-700 font-mono">
+                {pulse?.currentBlock?.interestRate ?? 0}%
+              </strong>
+            </span>
+          </div>
+
+          {/* WHAT SHOULD I DO NOW / WHY / NEXT ACTION */}
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+            <div>
+              <span className="font-bold text-slate-900 uppercase text-[10px] tracking-wider block text-indigo-800">
+                WHAT SHOULD I DO NOW?
+              </span>
+              <p className="text-slate-800 font-medium mt-0.5">
+                {pulse?.nextBlockFocus || 'Call your HOT and WARM leads first.'}
+              </p>
+            </div>
+            <div className="pt-2 border-t border-slate-200/80">
+              <span className="font-bold text-slate-700 uppercase text-[10px] tracking-wider block">
+                WHY:
+              </span>
+              <p className="text-slate-600 mt-0.5">
+                These leads already have buying signals and are closest to the next step.
+              </p>
+            </div>
+            <div className="pt-2 border-t border-slate-200/80">
+              <span className="font-bold text-indigo-700 uppercase text-[10px] tracking-wider block">
+                NEXT ACTION:
+              </span>
+              <p className="text-slate-700 font-semibold mt-0.5">
+                Call {hotLeads.length > 0 ? `${hotLeads.length} HOT lead(s)` : 'HOT leads'} → follow up with interested leads → prepare today&apos;s demos.
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="rounded-xl border border-indigo-500/20 bg-indigo-950/10 p-3.5">
-          <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block">Connected</span>
-          <span className="text-xl font-black text-indigo-300 mt-1 block">{counts.connectedCalls || 0}</span>
-          <span className="text-[10px] text-indigo-500">Live conversations</span>
+        {/* PREVIOUS BLOCK & WHAT'S GOING WELL (5 cols) */}
+        <div className="lg:col-span-5 space-y-4">
+          {/* PREVIOUS BLOCK CARD */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-slate-500" />
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  PREVIOUS BLOCK
+                </h4>
+              </div>
+              <span className="text-[10px] font-mono text-slate-500 font-semibold">
+                {pulse?.previousBlock?.blockTitle || 'Earlier Today'}
+              </span>
+            </div>
+
+            {pulse?.previousBlock && pulse.previousBlock.activity.totalCalls > 0 ? (
+              <div className="space-y-2 text-xs">
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
+                    <span className="text-[9px] text-slate-500 block uppercase font-bold">Calls</span>
+                    <span className="font-bold text-slate-900 font-mono text-sm">
+                      {pulse.previousBlock.activity.totalCalls}
+                    </span>
+                  </div>
+                  <div className="p-2 rounded-lg bg-indigo-50/50 border border-indigo-100">
+                    <span className="text-[9px] text-indigo-700 block uppercase font-bold">Connected</span>
+                    <span className="font-bold text-indigo-900 font-mono text-sm">
+                      {pulse.previousBlock.activity.connected}
+                    </span>
+                  </div>
+                  <div className="p-2 rounded-lg bg-emerald-50/50 border border-emerald-100">
+                    <span className="text-[9px] text-emerald-700 block uppercase font-bold">Interest</span>
+                    <span className="font-bold text-emerald-900 font-mono text-sm">
+                      {pulse.previousBlock.activity.interested}
+                    </span>
+                  </div>
+                  <div className="p-2 rounded-lg bg-violet-50/50 border border-violet-100">
+                    <span className="text-[9px] text-violet-700 block uppercase font-bold">Demos</span>
+                    <span className="font-bold text-violet-900 font-mono text-sm">
+                      {pulse.previousBlock.activity.demosScheduled}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-slate-500 flex justify-between pt-1">
+                  <span>Connected: {pulse.previousBlock.activity.connected}</span>
+                  <span>No Answer: {pulse.previousBlock.activity.noAnswer}</span>
+                  <span>Not Interested: {pulse.previousBlock.activity.notInterested}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="py-4 text-center text-xs text-slate-500">
+                No previous sales block completed yet today.
+              </div>
+            )}
+          </div>
+
+          {/* WHAT'S GOING WELL / DROP-OFFS */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-2.5 text-xs">
+            {pulse?.whatsGoingWell && pulse.whatsGoingWell.length > 0 ? (
+              <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200 text-emerald-950 space-y-1">
+                <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider block">
+                  ✓ What&apos;s Going Well
+                </span>
+                <ul className="list-disc list-inside space-y-0.5 text-[11px]">
+                  {pulse.whatsGoingWell.map((w: string, i: number) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-[11px]">
+                <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
+                  ✓ What&apos;s Going Well
+                </span>
+                Not enough activity yet to identify a strong positive signal.
+              </div>
+            )}
+
+            {pulse?.whatsWeak && pulse.whatsWeak.length > 0 && (
+              <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 text-amber-950 space-y-1">
+                <span className="text-[10px] font-black text-amber-800 uppercase tracking-wider block">
+                  ⚠ Drop-offs & Weak Areas
+                </span>
+                <ul className="list-disc list-inside space-y-0.5 text-[11px]">
+                  {pulse.whatsWeak.map((w: string, i: number) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 4. TODAY'S SALES METRICS ROW */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs">
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Today&apos;s Calls</span>
+          <span className="text-xl font-black text-slate-900 mt-0.5 block">{counts.todayCalls || 0}</span>
+          <span className="text-[10px] text-slate-500">Calls logged</span>
         </div>
 
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/10 p-3.5">
-          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Demos Run</span>
-          <span className="text-xl font-black text-emerald-300 mt-1 block">{counts.todayDemos || 0}</span>
-          <span className="text-[10px] text-emerald-500">Scheduled/Completed</span>
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3.5 shadow-xs">
+          <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block">Connected</span>
+          <span className="text-xl font-black text-indigo-900 mt-0.5 block">{counts.connectedCalls || 0}</span>
+          <span className="text-[10px] text-indigo-600">Spoke with client</span>
         </div>
 
-        <div className="rounded-xl border border-amber-500/20 bg-amber-950/10 p-3.5">
-          <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">Follow-ups</span>
-          <span className="text-xl font-black text-amber-300 mt-1 block">{counts.pendingFollowUps || 0}</span>
-          <span className="text-[10px] text-amber-500">Pending today</span>
+        <div className="rounded-xl border border-violet-100 bg-violet-50/50 p-3.5 shadow-xs">
+          <span className="text-[10px] font-bold text-violet-700 uppercase tracking-wider block">Demos</span>
+          <span className="text-xl font-black text-violet-900 mt-0.5 block">{counts.todayDemos || 0}</span>
+          <span className="text-[10px] text-violet-600">Scheduled/Done</span>
         </div>
 
-        <div className="rounded-xl border border-rose-500/20 bg-rose-950/10 p-3.5">
-          <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider block">Overdue</span>
-          <span className="text-xl font-black text-rose-300 mt-1 block">{counts.overdueFollowUps || 0}</span>
-          <span className="text-[10px] text-rose-500">Need resolution</span>
+        <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3.5 shadow-xs">
+          <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">Follow-ups</span>
+          <span className="text-xl font-black text-amber-900 mt-0.5 block">{counts.pendingFollowUps || 0}</span>
+          <span className="text-[10px] text-amber-600">Pending today</span>
+        </div>
+
+        <div className="rounded-xl border border-rose-100 bg-rose-50/50 p-3.5 shadow-xs">
+          <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wider block">Overdue</span>
+          <span className="text-xl font-black text-rose-900 mt-0.5 block">{counts.overdueFollowUps || 0}</span>
+          <span className="text-[10px] text-rose-600">Action needed</span>
         </div>
 
         <Link
           href="/schedule"
-          className="rounded-xl border border-slate-800 bg-slate-900/40 hover:bg-slate-800/40 p-3.5 transition group flex flex-col justify-between"
+          className="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 p-3.5 transition group flex flex-col justify-between shadow-xs"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Schedule</span>
-            <Calendar className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform" />
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Schedule</span>
+            <Calendar className="w-3.5 h-3.5 text-indigo-600 group-hover:scale-110 transition-transform" />
           </div>
-          <span className="text-xs font-semibold text-indigo-300 group-hover:underline mt-1">
-            View Timeline →
+          <span className="text-xs font-bold text-indigo-700 group-hover:underline mt-1">
+            Today&apos;s Plan →
           </span>
-          <span className="text-[10px] text-slate-500">Full day blocks</span>
+          <span className="text-[10px] text-slate-500">Timeline view</span>
         </Link>
       </div>
 
-      {/* 4.5 SMART SALES REMINDERS & NOTIFICATIONS WIDGET */}
-      <div className="rounded-2xl border border-amber-500/20 bg-slate-900/60 p-5 shadow-lg space-y-3.5">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-2">
-            <Bell className="w-4 h-4 text-amber-400" />
-            <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-              Smart Sales Reminders ({reminders.length})
-            </h3>
-          </div>
-          <div className="flex items-center gap-2 text-[10px]">
-            <span className="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 font-medium border border-rose-500/20">
-              DUE NOW: {reminders.filter((r: any) => new Date(r.remindAt) <= currentTime).length}
-            </span>
-            <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-medium border border-indigo-500/20">
-              UPCOMING: {reminders.filter((r: any) => new Date(r.remindAt) > currentTime).length}
-            </span>
-          </div>
-        </div>
-
-        {reminders.length === 0 ? (
-          <div className="py-4 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-500 opacity-60" />
-            <span>No pending active reminders. Scheduled tasks are automatically alerted via Web Push.</span>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {reminders.slice(0, 6).map((rem: any) => {
-              const isDue = new Date(rem.remindAt) <= currentTime;
-              return (
-                <div
-                  key={rem.id}
-                  className={cn(
-                    'p-3.5 rounded-xl border flex flex-col justify-between space-y-2 text-xs transition',
-                    isDue
-                      ? 'bg-amber-950/20 border-amber-500/30'
-                      : 'bg-slate-950/70 border-slate-800'
-                  )}
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="font-bold text-slate-200 truncate">{rem.title}</span>
-                      <span
-                        className={cn(
-                          'text-[9px] font-bold px-1.5 py-0.5 rounded uppercase shrink-0',
-                          isDue
-                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                            : 'bg-slate-800 text-slate-400'
-                        )}
-                      >
-                        {isDue ? 'DUE NOW' : 'UPCOMING'}
-                      </span>
-                    </div>
-                    {rem.message && <p className="text-[11px] text-slate-400 line-clamp-2">{rem.message}</p>}
-                    <div className="text-[10px] text-slate-500 font-mono">
-                      {new Date(rem.remindAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
-                    {rem.leadId ? (
-                      <Link
-                        href={`/leads/${rem.leadId}`}
-                        className="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium"
-                      >
-                        View Lead →
-                      </Link>
-                    ) : (
-                      <span />
-                    )}
-
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => handleReminderAction(rem.id, 'SNOOZE')}
-                        className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] transition"
-                      >
-                        Snooze 15m
-                      </button>
-                      <button
-                        onClick={() => handleReminderAction(rem.id, 'COMPLETE')}
-                        className="p-1 rounded bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-[10px] transition"
-                        title="Mark Done"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
       {/* 5. DUAL COCKPIT LISTS: OVERDUE ACTIONS & PRIORITY LEADS */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* OVERDUE ACTIONS SECTION */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 space-y-3.5">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3 shadow-xs">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-rose-400" />
-              <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-                Overdue Follow-ups & Callbacks ({overdueItems.length})
+              <AlertTriangle className="w-4 h-4 text-rose-600" />
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Follow-ups Due ({overdueItems.length})
               </h3>
             </div>
-            <span className="text-[10px] text-rose-400 font-mono">Action Required</span>
+            <span className="text-[10px] text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded">Action Required</span>
           </div>
 
           {overdueItems.length === 0 ? (
             <div className="py-6 text-center text-xs text-slate-500">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-1.5 opacity-60" />
-              No overdue follow-ups! Pipeline is clean and on track.
+              <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-1 opacity-80" />
+              All follow-ups completed on time!
             </div>
           ) : (
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {overdueItems.slice(0, 4).map((fu: any) => (
                 <div
                   key={fu.id}
-                  className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between gap-3 text-xs"
+                  className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 text-xs"
                 >
                   <div className="min-w-0">
-                    <div className="font-semibold text-slate-200 truncate">
+                    <div className="font-bold text-slate-900 truncate">
                       {fu.lead?.business?.name || fu.lead?.title || 'Lead'}
                     </div>
-                    <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
-                      <User className="w-3 h-3" />
+                    <div className="text-[11px] text-slate-600 flex items-center gap-1.5 mt-0.5">
+                      <User className="w-3 h-3 text-slate-400" />
                       <span>{fu.lead?.contact?.name || 'Contact'}</span>
-                      <span className="text-rose-400 font-mono">
+                      <span className="text-rose-600 font-medium">
                         (Due {new Date(fu.scheduledAt).toLocaleDateString()})
                       </span>
                     </div>
@@ -788,13 +964,13 @@ export const TodayCockpit: React.FC = () => {
                         setActiveLead(fu.lead);
                         setIsBriefOpen(true);
                       }}
-                      className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-[11px] transition flex items-center gap-1"
+                      className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition flex items-center gap-1"
                     >
                       <PhoneCall className="w-3 h-3" /> Call
                     </button>
                     <button
                       onClick={() => handleCompleteFollowUp(fu.id)}
-                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-emerald-950 text-slate-400 hover:text-emerald-400 transition"
+                      className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-emerald-600 transition"
                       title="Mark Follow-up Complete"
                     >
                       <CheckCircle2 className="w-4 h-4" />
@@ -806,39 +982,39 @@ export const TodayCockpit: React.FC = () => {
           )}
         </div>
 
-        {/* PRIORITY HIGH-LEVERAGE LEADS */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 space-y-3.5">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+        {/* TOP PRIORITY HOT LEADS */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3 shadow-xs">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
             <div className="flex items-center gap-2">
-              <Flame className="w-4 h-4 text-amber-400" />
-              <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-                Top Priority Leads ({hotLeads.length})
+              <Flame className="w-4 h-4 text-amber-500" />
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Hot Leads to Close ({hotLeads.length})
               </h3>
             </div>
-            <span className="text-[10px] text-indigo-400 font-mono">Highest Leverage</span>
+            <span className="text-[10px] text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded">Highest Priority</span>
           </div>
 
           {hotLeads.length === 0 ? (
             <div className="py-6 text-center text-xs text-slate-500">
-              No hot leads currently flagged. Conduct fresh discovery calling to qualify new prospects.
+              No hot leads currently pending. Run calls to qualify new leads!
             </div>
           ) : (
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {hotLeads.slice(0, 4).map((hl: any) => (
                 <div
                   key={hl.id}
-                  className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between gap-3 text-xs"
+                  className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 text-xs"
                 >
                   <div className="min-w-0">
-                    <div className="font-semibold text-slate-200 truncate flex items-center gap-1.5">
+                    <div className="font-bold text-slate-900 truncate flex items-center gap-1.5">
                       <span>{hl.business?.name || hl.title}</span>
-                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                        HOT
+                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-rose-100 text-rose-800">
+                        🔥 HOT
                       </span>
                     </div>
-                    <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
+                    <div className="text-[11px] text-slate-600 flex items-center gap-2 mt-0.5">
                       <span>{hl.contact?.name || 'Contact'}</span>
-                      {hl.contact?.phone && <span className="font-mono">{hl.contact.phone}</span>}
+                      {hl.contact?.phone && <span className="font-mono text-indigo-700">{hl.contact.phone}</span>}
                     </div>
                   </div>
 
@@ -848,20 +1024,20 @@ export const TodayCockpit: React.FC = () => {
                         setActiveLead(hl);
                         setIsBriefOpen(true);
                       }}
-                      className="px-2.5 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/40 border border-indigo-500/30 text-indigo-300 font-semibold text-[11px] transition flex items-center gap-1"
+                      className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition flex items-center gap-1"
                     >
                       <PhoneCall className="w-3 h-3" /> Dial
                     </button>
                     <button
-                      onClick={() => setWhatsAppTarget({ leadId: hl.id, category: 'VALUE_DROP' })}
-                      className="p-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 transition"
+                      onClick={() => setWhatsAppTarget({ leadId: hl.id, category: 'DAY_1_FOLLOWUP' })}
+                      className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition"
                       title="Quick WhatsApp"
                     >
                       <MessageSquare className="w-4 h-4" />
                     </button>
                     <Link
                       href={`/leads/${hl.id}`}
-                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition"
+                      className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-slate-900 transition"
                       title="Open Profile"
                     >
                       <ArrowRight className="w-4 h-4" />
@@ -894,6 +1070,7 @@ export const TodayCockpit: React.FC = () => {
           leadId={activeLead.id}
           leadTitle={activeLead.title || activeLead.business?.name || 'Lead'}
           contactName={activeLead.contact?.name}
+          contactPhone={activeLead.contact?.phone}
           isOpen={isLoggerOpen}
           onClose={() => {
             setIsLoggerOpen(false);

@@ -12,9 +12,6 @@ import {
   Clock,
   CheckSquare,
   FileText,
-  Edit,
-  Trophy,
-  XCircle,
   Building,
   User,
   Flame,
@@ -22,6 +19,9 @@ import {
   Tag,
   AlertCircle,
   Loader2,
+  DollarSign,
+  ChevronRight,
+  CheckCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BeforeCallBriefModal } from '@/components/calls/BeforeCallBriefModal';
@@ -44,7 +44,9 @@ export const LeadProfileClient: React.FC<LeadProfileClientProps> = ({ id }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'memory' | 'timeline' | 'calls' | 'demos' | 'whatsapp' | 'notes' | 'ai'>('overview');
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'memory' | 'timeline' | 'calls' | 'demos' | 'whatsapp' | 'notes' | 'ai'
+  >('overview');
 
   // Intelligence & Dossier Drawer
   const [isTellMeEverythingOpen, setIsTellMeEverythingOpen] = useState(false);
@@ -56,24 +58,21 @@ export const LeadProfileClient: React.FC<LeadProfileClientProps> = ({ id }) => {
   const [quickWhatsAppCategory, setQuickWhatsAppCategory] = useState<string>('DAY_1_FOLLOWUP');
 
   // Other Quick Action Modal States
-  const [actionModal, setActionModal] = useState<'whatsapp' | 'demo' | 'followup' | 'task' | 'note' | 'edit' | null>(null);
+  const [actionModal, setActionModal] = useState<
+    'whatsapp' | 'demo' | 'followup' | 'task' | 'note' | 'edit' | null
+  >(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   // Action Form Inputs
   const [demoDate, setDemoDate] = useState('');
   const [demoNotes, setDemoNotes] = useState('');
-
   const [followupDate, setFollowupDate] = useState('');
   const [followupNotes, setFollowupNotes] = useState('');
-
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDueDate, setTaskDueDate] = useState('');
-
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
-
   const [waContent, setWaContent] = useState('');
-
   const [editTemperature, setEditTemperature] = useState('WARM');
   const [editStatus, setEditStatus] = useState('NEW');
 
@@ -192,12 +191,12 @@ export const LeadProfileClient: React.FC<LeadProfileClientProps> = ({ id }) => {
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-32 w-full rounded-2xl skeleton-shimmer border border-slate-800" />
-        <div className="h-12 w-full rounded-xl skeleton-shimmer border border-slate-800" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="h-64 rounded-2xl skeleton-shimmer border border-slate-800 col-span-2" />
-          <div className="h-64 rounded-2xl skeleton-shimmer border border-slate-800" />
+      <div className="space-y-4 animate-pulse">
+        <div className="h-32 w-full rounded-2xl bg-white border border-slate-200" />
+        <div className="h-12 w-full rounded-xl bg-white border border-slate-200" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="h-64 rounded-2xl bg-white border border-slate-200 col-span-2" />
+          <div className="h-64 rounded-2xl bg-white border border-slate-200" />
         </div>
       </div>
     );
@@ -205,12 +204,12 @@ export const LeadProfileClient: React.FC<LeadProfileClientProps> = ({ id }) => {
 
   if (error || !lead) {
     return (
-      <div className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-6 text-center">
-        <AlertCircle className="mx-auto h-8 w-8 text-rose-400 mb-2" />
-        <h3 className="text-sm font-semibold text-slate-200">{error || 'Lead not found.'}</h3>
+      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center shadow-xs">
+        <AlertCircle className="mx-auto h-8 w-8 text-rose-600 mb-2" />
+        <h3 className="text-sm font-bold text-slate-900">{error || 'Lead not found.'}</h3>
         <Link
           href="/leads"
-          className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3.5 py-1.5 text-xs text-slate-200 hover:bg-slate-700"
+          className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-white border border-slate-200 px-4 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-50 transition"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Back to Leads
@@ -220,15 +219,15 @@ export const LeadProfileClient: React.FC<LeadProfileClientProps> = ({ id }) => {
   }
 
   const tempBadge = {
-    HOT: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
-    WARM: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-    COLD: 'bg-slate-500/10 text-slate-400 border-slate-500/30',
-  }[lead.temperature as 'HOT' | 'WARM' | 'COLD'] || 'bg-slate-500/10 text-slate-400';
+    HOT: 'bg-rose-50 text-rose-700 border-rose-200 font-bold',
+    WARM: 'bg-amber-50 text-amber-700 border-amber-200 font-bold',
+    COLD: 'bg-slate-100 text-slate-600 border-slate-200 font-medium',
+  }[lead.temperature as 'HOT' | 'WARM' | 'COLD'] || 'bg-slate-100 text-slate-600';
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
-    { id: 'memory', label: `Customer Memory (${lead.memories?.length || 0})` },
-    { id: 'timeline', label: 'Complete Timeline' },
+    { id: 'memory', label: `What I Know (${lead.memories?.length || 0})` },
+    { id: 'timeline', label: 'Activity History' },
     { id: 'calls', label: `Calls (${lead.calls?.length || 0})` },
     { id: 'demos', label: `Demos (${lead.demos?.length || 0})` },
     { id: 'whatsapp', label: `WhatsApp (${lead.whatsAppMsgs?.length || 0})` },
@@ -237,479 +236,305 @@ export const LeadProfileClient: React.FC<LeadProfileClientProps> = ({ id }) => {
   ];
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-4 pb-12">
       {/* Navigation Header */}
       <div className="flex items-center justify-between">
         <Link
           href="/leads"
-          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-400 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-indigo-600 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Lead List
+          Back to Pipeline
         </Link>
 
         {/* Lead Quick Status Badges */}
         <div className="flex items-center gap-2">
-          <span className={cn('rounded border px-2.5 py-0.5 text-xs font-semibold', tempBadge)}>
+          <span className={cn('rounded-md border px-2.5 py-0.5 text-xs', tempBadge)}>
             <Flame className="inline h-3.5 w-3.5 mr-1" />
             {lead.temperature}
           </span>
-          <span className="rounded border border-indigo-500/30 bg-indigo-950/40 px-2.5 py-0.5 text-xs font-semibold text-indigo-300">
+          <span className="rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
             Stage: {lead.status}
           </span>
         </div>
       </div>
 
-      {/* Main Title & Lead Actions Bar */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
-                <Building className="h-6 w-6" />
+      {/* 1. SALES-FIRST MASTER SUMMARY CARD */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div className="flex items-start gap-3.5">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+              <Building className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl font-black text-slate-900">{lead.title}</h1>
+                {lead.estimatedValue && (
+                  <span className="font-mono font-bold text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-100">
+                    ₹{Number(lead.estimatedValue).toLocaleString('en-IN')}
+                  </span>
+                )}
               </div>
-              <div>
-                <h1 className="text-xl font-bold text-slate-100">{lead.title}</h1>
-                <p className="text-xs text-slate-400 flex items-center gap-3 mt-0.5">
-                  <span>Source: {lead.source || 'Direct Outreach'}</span>
-                  <span>•</span>
-                  <span>Created {new Date(lead.createdAt).toLocaleDateString()}</span>
-                </p>
-              </div>
+              <p className="text-xs text-slate-500 flex items-center gap-3 mt-1 flex-wrap">
+                {lead.contact?.name && (
+                  <span className="font-semibold text-slate-800 flex items-center gap-1">
+                    <User className="h-3.5 w-3.5 text-slate-400" />
+                    {lead.contact.name}
+                  </span>
+                )}
+                {lead.contact?.phone && (
+                  <span className="font-mono font-bold text-indigo-700 flex items-center gap-1">
+                    <Phone className="h-3.5 w-3.5 text-slate-400" />
+                    {lead.contact.phone}
+                  </span>
+                )}
+                <span>Source: {lead.source || 'Outreach'}</span>
+              </p>
             </div>
           </div>
 
-          {/* Action Buttons Toolbar */}
+          {/* Quick Action Toolbar */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* CALL NOW (Opens Before-Call Brief) */}
             <button
               onClick={() => setIsBriefOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-3.5 py-1.5 text-xs font-bold text-white hover:from-emerald-500 hover:to-teal-500 active:scale-95 transition-all shadow-md shadow-emerald-600/25"
+              className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-md shadow-emerald-600/20 active:scale-95 transition"
             >
-              <PhoneCall className="h-3.5 w-3.5 animate-pulse" />
+              <PhoneCall className="h-3.5 w-3.5" />
               <span>CALL NOW</span>
             </button>
 
-            {/* TELL ME EVERYTHING BUTTON */}
             <button
               onClick={() => setIsTellMeEverythingOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-indigo-500/40 bg-indigo-950/40 px-3.5 py-1.5 text-xs font-bold text-indigo-300 hover:bg-indigo-900/60 active:scale-95 transition-all shadow-md shadow-indigo-950/50"
+              className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 active:scale-95 transition shadow-xs"
             >
-              <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+              <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
               <span>TELL ME EVERYTHING</span>
             </button>
 
-            {/* Quick Log Call Result */}
             <button
               onClick={() => setIsCallLoggerOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-950/30 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-900/40 transition-colors"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
             >
-              <Phone className="h-3.5 w-3.5" />
+              <Phone className="h-3.5 w-3.5 text-slate-400" />
               <span>Log Call</span>
             </button>
 
             <button
               onClick={() => setIsQuickWhatsAppOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-teal-500/30 bg-teal-950/30 px-3 py-1.5 text-xs font-medium text-teal-300 hover:bg-teal-900/40 transition-colors"
+              className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition"
             >
-              <MessageSquare className="h-3.5 w-3.5" />
-              WhatsApp
+              <MessageSquare className="h-3.5 w-3.5 text-emerald-600" />
+              <span>WhatsApp</span>
             </button>
 
             <button
               onClick={() => setActionModal('demo')}
-              className="flex items-center gap-1.5 rounded-lg border border-violet-500/30 bg-violet-950/30 px-3 py-1.5 text-xs font-medium text-violet-300 hover:bg-violet-900/40 transition-colors"
+              className="flex items-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-800 hover:bg-violet-100 transition"
             >
-              <Video className="h-3.5 w-3.5" />
-              Schedule Demo
+              <Video className="h-3.5 w-3.5 text-violet-600" />
+              <span>Schedule Demo</span>
             </button>
-
-            <button
-              onClick={() => setActionModal('followup')}
-              className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-950/30 px-3 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-900/40 transition-colors"
-            >
-              <Clock className="h-3.5 w-3.5" />
-              Add Follow-up
-            </button>
-
-            <button
-              onClick={() => setActionModal('task')}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 transition-colors"
-            >
-              <CheckSquare className="h-3.5 w-3.5" />
-              Add Task
-            </button>
-
-            <button
-              onClick={() => setActionModal('note')}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 transition-colors"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              Add Note
-            </button>
-
-            <button
-              onClick={() => setActionModal('edit')}
-              className="flex items-center gap-1.5 rounded-lg border border-indigo-500/40 bg-indigo-950/40 px-3 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-900/50 transition-colors"
-            >
-              <Edit className="h-3.5 w-3.5" />
-              Edit
-            </button>
-
-            {lead.status !== 'WON' && (
-              <button
-                onClick={() => handleStatusUpdate('WON')}
-                className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 transition-all shadow-md shadow-emerald-600/20"
-              >
-                <Trophy className="h-3.5 w-3.5" />
-                Mark Won
-              </button>
-            )}
-
-            {lead.status !== 'LOST' && (
-              <button
-                onClick={() => handleStatusUpdate('LOST')}
-                className="flex items-center gap-1 rounded-lg border border-rose-500/40 bg-rose-950/40 px-3 py-1.5 text-xs font-medium text-rose-300 hover:bg-rose-900/50 transition-colors"
-              >
-                <XCircle className="h-3.5 w-3.5" />
-                Mark Lost
-              </button>
-            )}
           </div>
         </div>
 
-        {/* Section Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pt-4 scrollbar-none">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={cn(
-                'rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all whitespace-nowrap',
-                activeTab === tab.id
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* What Happened & Next Action Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+          <div>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+              What Happened Recently?
+            </span>
+            <p className="text-slate-800 font-medium leading-relaxed">
+              {lead.notes || 'Prospect added to pipeline. Ready for discovery calling and qualification.'}
+            </p>
+          </div>
+
+          <div>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+              Next Action Scheduled
+            </span>
+            {lead.nextActionDate ? (
+              <div className="flex items-center gap-2 text-amber-900 font-bold">
+                <Clock className="h-4 w-4 text-amber-600" />
+                <span>
+                  Due on {new Date(lead.nextActionDate).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            ) : (
+              <span className="text-slate-500">No upcoming action set. Click &quot;Add Follow-up&quot; to schedule.</span>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Tab Contents */}
+      {/* Tabs Navigation */}
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-slate-200 pb-1 scrollbar-none">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={cn(
+              'px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap',
+              activeTab === tab.id
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900'
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      {/* OVERVIEW TAB */}
-      {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* Column 1: Contact & Business Details */}
-          <div className="space-y-4">
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <User className="h-4 w-4 text-indigo-400" /> Primary Contact
-              </h3>
-              <div className="space-y-2 text-xs">
-                <div>
-                  <span className="text-slate-500 block">Name</span>
-                  <span className="font-semibold text-slate-200">{lead.contact?.name || 'N/A'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Phone</span>
-                  <span className="font-mono text-indigo-300 font-semibold">{lead.contact?.phone || 'N/A'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Email</span>
-                  <span className="text-slate-300">{lead.contact?.email || 'N/A'}</span>
-                </div>
-              </div>
+      {/* Tab Content Display */}
+      <div className="mt-4">
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2 space-y-4">
+              <CustomerMemoryTab leadId={id} />
+              <CompleteTimelineTab leadId={id} />
             </div>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <Building className="h-4 w-4 text-emerald-400" /> Business Profile
-              </h3>
-              <div className="space-y-2 text-xs">
-                <div>
-                  <span className="text-slate-500 block">Business Name</span>
-                  <span className="font-semibold text-slate-200">{lead.business?.name || 'Individual Prospect'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Industry</span>
-                  <span className="text-slate-300">{lead.business?.industry || 'Unspecified'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">City / Location</span>
-                  <span className="text-slate-300">{lead.business?.city || 'Unspecified'}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Column 2: Deal & Sales Signals */}
-          <div className="space-y-4">
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <Tag className="h-4 w-4 text-amber-400" /> Pipeline & Status
-              </h3>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div>
-                  <span className="text-slate-500 block">Lead Score</span>
-                  <span className="text-sm font-extrabold text-indigo-400">
-                    {lead.scoreValue ? `${lead.scoreValue} / 100` : 'Unscored'}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Est. Value</span>
-                  <span className="text-sm font-extrabold text-emerald-400">
-                    {lead.estimatedValue ? `₹${Number(lead.estimatedValue).toLocaleString()}` : 'TBD'}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Last Contact</span>
-                  <span className="text-slate-300">{new Date(lead.updatedAt).toLocaleDateString()}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Next Action</span>
-                  <span className="text-amber-400 font-semibold">
-                    {lead.nextActionDate ? new Date(lead.nextActionDate).toLocaleDateString() : 'None set'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <FileText className="h-4 w-4 text-violet-400" /> Sales Notes & Context
-              </h3>
-              <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
-                {lead.notes || 'No notes added yet.'}
-              </p>
-            </div>
-          </div>
-
-          {/* Column 3: Buying Signals & Requirements */}
-          <div className="space-y-4">
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <Sparkles className="h-4 w-4 text-indigo-400" /> Customer Memory Facts
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3 shadow-xs text-xs">
+                <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-2">
+                  Lead Details & Stage
                 </h3>
-                <button
-                  onClick={() => setActiveTab('memory')}
-                  className="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-0.5"
-                >
-                  Manage ({lead.memories?.length || 0}) →
-                </button>
-              </div>
-
-              <div className="space-y-2 text-xs">
-                {lead.memories && lead.memories.length > 0 ? (
-                  lead.memories.slice(0, 5).map((m: any) => (
-                    <div key={m.id} className="rounded-lg bg-slate-950 p-2.5 border border-slate-800/80 space-y-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="font-semibold text-slate-200 block">{m.key}</span>
-                        <span
-                          className={cn(
-                            'rounded px-1.5 py-0.2 text-[9px] font-bold border',
-                            m.verificationState === 'CONFIRMED'
-                              ? 'bg-emerald-950/30 text-emerald-400 border-emerald-500/20'
-                              : m.verificationState === 'INFERRED'
-                              ? 'bg-amber-950/30 text-amber-400 border-amber-500/20'
-                              : 'bg-rose-950/30 text-rose-400 border-rose-500/20 line-through'
-                          )}
-                        >
-                          {m.verificationState}
-                        </span>
-                      </div>
-                      <p className="text-slate-300 text-[11px] leading-relaxed line-clamp-2">{m.value}</p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-4 space-y-2">
-                    <p className="text-xs text-slate-500">
-                      No customer memory facts recorded yet.
-                    </p>
-                    <button
-                      onClick={() => setActiveTab('memory')}
-                      className="text-xs text-indigo-400 hover:underline font-medium"
-                    >
-                      + Add first fact in Customer Memory
-                    </button>
+                <div className="space-y-2 text-slate-700">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Stage:</span>
+                    <strong className="text-slate-900">{lead.status}</strong>
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CUSTOMER MEMORY TAB */}
-      {activeTab === 'memory' && (
-        <CustomerMemoryTab
-          leadId={id}
-          onMemoryChanged={fetchLeadDetails}
-        />
-      )}
-
-      {/* COMPLETE TIMELINE TAB */}
-      {activeTab === 'timeline' && (
-        <CompleteTimelineTab
-          leadId={id}
-          onOpenCallDetails={() => setActiveTab('calls')}
-        />
-      )}
-
-      {/* CALLS TAB - Built with CallHistoryTab */}
-      {activeTab === 'calls' && (
-        <CallHistoryTab
-          leadId={id}
-          onOpenLogCall={() => setIsCallLoggerOpen(true)}
-        />
-      )}
-
-      {/* DEMOS TAB */}
-      {activeTab === 'demos' && (
-        <DemoListAndCockpit
-          leadId={id}
-          leadName={lead?.contact?.name || lead?.contactName}
-          businessName={lead?.business?.name || lead?.businessName}
-        />
-      )}
-
-      {/* WHATSAPP TAB */}
-      {activeTab === 'whatsapp' && (
-        <LeadWhatsAppTab
-          leadId={id}
-          lead={lead}
-          onRefreshNeeded={fetchLeadDetails}
-        />
-      )}
-
-      {/* NOTES TAB */}
-      {activeTab === 'notes' && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Sales Notes</h3>
-            <button
-              onClick={() => setActionModal('note')}
-              className="text-xs text-indigo-400 hover:underline flex items-center gap-1"
-            >
-              <FileText className="h-3 w-3" /> Add Note
-            </button>
-          </div>
-          {lead.notesList && lead.notesList.length > 0 ? (
-            <div className="space-y-2">
-              {lead.notesList.map((n: any) => (
-                <div key={n.id} className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-200">{n.title}</span>
-                    <span className="text-[11px] text-slate-500">{new Date(n.createdAt).toLocaleDateString()}</span>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Temperature:</span>
+                    <strong className="text-slate-900">{lead.temperature}</strong>
                   </div>
-                  <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">{n.content}</p>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Deal Value:</span>
+                    <strong className="font-mono text-emerald-700">₹{lead.estimatedValue || '0'}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Created:</span>
+                    <span>{new Date(lead.createdAt).toLocaleDateString()}</span>
+                  </div>
                 </div>
-              ))}
+
+                <div className="pt-3 border-t border-slate-100 flex gap-2">
+                  <button
+                    onClick={() => handleStatusUpdate('WON')}
+                    className="flex-1 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition text-center"
+                  >
+                    Mark WON
+                  </button>
+                  <button
+                    onClick={() => handleStatusUpdate('LOST')}
+                    className="flex-1 py-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 font-bold text-xs transition text-center"
+                  >
+                    Mark Lost
+                  </button>
+                </div>
+              </div>
+
+              <DemoListAndCockpit
+                leadId={id}
+                leadName={lead.contact?.name || lead.title}
+                businessName={lead.business?.name || lead.title}
+              />
             </div>
-          ) : (
-            <p className="text-xs text-slate-500">No extra notes added yet.</p>
-          )}
-        </div>
+          </div>
+        )}
+
+        {activeTab === 'memory' && <CustomerMemoryTab leadId={id} />}
+        {activeTab === 'timeline' && <CompleteTimelineTab leadId={id} />}
+        {activeTab === 'calls' && <CallHistoryTab leadId={id} onOpenLogCall={() => setIsCallLoggerOpen(true)} />}
+        {activeTab === 'demos' && (
+          <DemoListAndCockpit
+            leadId={id}
+            leadName={lead.contact?.name || lead.title}
+            businessName={lead.business?.name || lead.title}
+          />
+        )}
+        {activeTab === 'whatsapp' && <LeadWhatsAppTab leadId={id} lead={lead} onRefreshNeeded={fetchLeadDetails} />}
+      </div>
+
+      {/* Modals & Drawers */}
+      <TellMeEverythingDrawer
+        leadId={id}
+        isOpen={isTellMeEverythingOpen}
+        onClose={() => setIsTellMeEverythingOpen(false)}
+      />
+
+      {isBriefOpen && (
+        <BeforeCallBriefModal
+          lead={lead}
+          isOpen={isBriefOpen}
+          onClose={() => setIsBriefOpen(false)}
+          onStartCallLogging={() => {
+            setIsBriefOpen(false);
+            setIsCallLoggerOpen(true);
+          }}
+        />
       )}
 
-      {/* AI INTELLIGENCE TAB */}
-      {activeTab === 'ai' && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-            <Sparkles className="h-4 w-4" /> AI Sales Intelligence Shell
-          </h3>
-          <p className="text-xs text-slate-400">
-            AI automated lead scoring, call transcript analysis, and recommendation engines will bind to this lead context in future phases.
-          </p>
-        </div>
+      {isCallLoggerOpen && (
+        <QuickCallLoggerModal
+          leadId={id}
+          leadTitle={lead.title}
+          contactName={lead.contact?.name}
+          contactPhone={lead.contact?.phone}
+          initialTemperature={lead.temperature}
+          isOpen={isCallLoggerOpen}
+          onClose={() => {
+            setIsCallLoggerOpen(false);
+            fetchLeadDetails();
+          }}
+          onSuccess={() => {
+            setIsCallLoggerOpen(false);
+            fetchLeadDetails();
+          }}
+          onOpenWhatsApp={(cat) => {
+            setIsCallLoggerOpen(false);
+            setQuickWhatsAppCategory(cat);
+            setIsQuickWhatsAppOpen(true);
+          }}
+        />
       )}
 
-      {/* BEFORE CALL BRIEF MODAL */}
-      <BeforeCallBriefModal
-        isOpen={isBriefOpen}
-        onClose={() => setIsBriefOpen(false)}
-        lead={lead}
-        onStartCallLogging={() => setIsCallLoggerOpen(true)}
-      />
+      {isQuickWhatsAppOpen && (
+        <QuickWhatsAppModal
+          leadId={id}
+          initialCategory={quickWhatsAppCategory}
+          isOpen={isQuickWhatsAppOpen}
+          onClose={() => setIsQuickWhatsAppOpen(false)}
+        />
+      )}
 
-      {/* QUICK CALL LOGGER MODAL */}
-      <QuickCallLoggerModal
-        isOpen={isCallLoggerOpen}
-        onClose={() => setIsCallLoggerOpen(false)}
-        leadId={id}
-        leadTitle={lead.title}
-        contactName={lead.contact?.name}
-        initialTemperature={lead.temperature}
-        onSuccess={() => {
-          fetchLeadDetails();
-          setActiveTab('calls');
-        }}
-        onOpenWhatsApp={(cat) => {
-          setQuickWhatsAppCategory(cat);
-          setIsQuickWhatsAppOpen(true);
-        }}
-      />
-
-      {/* QUICK WHATSAPP MODAL */}
-      <QuickWhatsAppModal
-        isOpen={isQuickWhatsAppOpen}
-        onClose={() => setIsQuickWhatsAppOpen(false)}
-        leadId={id}
-        leadName={lead.contact?.name || lead.title}
-        businessName={lead.business?.name}
-        phone={lead.contact?.phone}
-        initialCategory={quickWhatsAppCategory}
-        onMessageLogged={() => {
-          fetchLeadDetails();
-          setActiveTab('whatsapp');
-        }}
-      />
-
-      {/* OTHER ACTION MODAL DIALOGS */}
+      {/* Action Modal (Schedule Demo / Followup / Task) */}
       {actionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md rounded-xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-              <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wide">
-                {actionModal === 'demo' && 'Schedule Demo'}
-                {actionModal === 'followup' && 'Add Follow-up'}
-                {actionModal === 'task' && 'Add Task'}
-                {actionModal === 'note' && 'Add Note'}
-                {actionModal === 'whatsapp' && 'Log WhatsApp Message'}
-                {actionModal === 'edit' && 'Edit Lead Status'}
-              </h3>
-              <button
-                onClick={() => setActionModal(null)}
-                className="text-slate-400 hover:text-slate-200"
-              >
-                ✕
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl p-5 space-y-3 text-xs">
+            <h3 className="text-sm font-bold text-slate-900 capitalize">
+              {actionModal === 'demo' ? 'Schedule Product Demo' : actionModal === 'followup' ? 'Add Follow-up' : 'Add Task'}
+            </h3>
 
-            <form onSubmit={handleActionSubmit} className="space-y-3 text-xs">
+            <form onSubmit={handleActionSubmit} className="space-y-3">
               {actionModal === 'demo' && (
                 <>
                   <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Date & Time</label>
+                    <label className="block font-bold text-slate-700 mb-1">Date & Time</label>
                     <input
                       type="datetime-local"
+                      required
                       value={demoDate}
                       onChange={(e) => setDemoDate(e.target.value)}
-                      required
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2 text-slate-100"
+                      className="w-full rounded-lg border border-slate-200 p-2 text-slate-900 font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Demo Notes / Focus</label>
+                    <label className="block font-bold text-slate-700 mb-1">Notes</label>
                     <textarea
                       rows={2}
                       value={demoNotes}
                       onChange={(e) => setDemoNotes(e.target.value)}
-                      placeholder="Key features to present..."
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2 text-slate-100"
+                      placeholder="Demo objectives..."
+                      className="w-full rounded-lg border border-slate-200 p-2 text-slate-900"
                     />
                   </div>
                 </>
@@ -718,156 +543,48 @@ export const LeadProfileClient: React.FC<LeadProfileClientProps> = ({ id }) => {
               {actionModal === 'followup' && (
                 <>
                   <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Follow-up Date & Time</label>
+                    <label className="block font-bold text-slate-700 mb-1">Follow-up Date & Time</label>
                     <input
                       type="datetime-local"
+                      required
                       value={followupDate}
                       onChange={(e) => setFollowupDate(e.target.value)}
-                      required
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2 text-slate-100"
+                      className="w-full rounded-lg border border-slate-200 p-2 text-slate-900 font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Reminder Notes</label>
+                    <label className="block font-bold text-slate-700 mb-1">Notes</label>
                     <textarea
                       rows={2}
                       value={followupNotes}
                       onChange={(e) => setFollowupNotes(e.target.value)}
-                      placeholder="e.g. Call back regarding pricing proposal"
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2 text-slate-100"
+                      placeholder="Follow-up context..."
+                      className="w-full rounded-lg border border-slate-200 p-2 text-slate-900"
                     />
                   </div>
                 </>
               )}
 
-              {actionModal === 'task' && (
-                <>
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Task Title</label>
-                    <input
-                      type="text"
-                      value={taskTitle}
-                      onChange={(e) => setTaskTitle(e.target.value)}
-                      required
-                      placeholder="e.g. Send quotation proposal PDF"
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2 text-slate-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Due Date</label>
-                    <input
-                      type="date"
-                      value={taskDueDate}
-                      onChange={(e) => setTaskDueDate(e.target.value)}
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2 text-slate-100"
-                    />
-                  </div>
-                </>
-              )}
-
-              {actionModal === 'note' && (
-                <>
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Note Title</label>
-                    <input
-                      type="text"
-                      value={noteTitle}
-                      onChange={(e) => setNoteTitle(e.target.value)}
-                      placeholder="e.g. Budget confirmation"
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2 text-slate-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Content</label>
-                    <textarea
-                      rows={3}
-                      value={noteContent}
-                      onChange={(e) => setNoteContent(e.target.value)}
-                      required
-                      placeholder="Enter detailed notes..."
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2 text-slate-100"
-                    />
-                  </div>
-                </>
-              )}
-
-              {actionModal === 'whatsapp' && (
-                <>
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Message Content</label>
-                    <textarea
-                      rows={3}
-                      value={waContent}
-                      onChange={(e) => setWaContent(e.target.value)}
-                      required
-                      placeholder="Type WhatsApp message..."
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2 text-slate-100"
-                    />
-                  </div>
-                </>
-              )}
-
-              {actionModal === 'edit' && (
-                <>
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Lead Stage / Status</label>
-                    <select
-                      value={editStatus}
-                      onChange={(e) => setEditStatus(e.target.value)}
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2 text-slate-100"
-                    >
-                      <option value="NEW">New</option>
-                      <option value="CONTACTED">Contacted</option>
-                      <option value="QUALIFIED">Qualified</option>
-                      <option value="UNQUALIFIED">Unqualified</option>
-                      <option value="PROPOSAL_SENT">Proposal Sent</option>
-                      <option value="NEGOTIATION">Negotiation</option>
-                      <option value="WON">Won</option>
-                      <option value="LOST">Lost</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Temperature</label>
-                    <select
-                      value={editTemperature}
-                      onChange={(e) => setEditTemperature(e.target.value)}
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2 text-slate-100"
-                    >
-                      <option value="COLD">Cold</option>
-                      <option value="WARM">Warm</option>
-                      <option value="HOT">Hot</option>
-                    </select>
-                  </div>
-                </>
-              )}
-
-              <div className="flex justify-end gap-2 border-t border-slate-800 pt-3 mt-4">
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setActionModal(null)}
-                  className="rounded-lg border border-slate-800 px-3 py-1.5 text-slate-400 hover:bg-slate-800"
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="rounded-lg bg-indigo-600 px-4 py-1.5 font-bold text-white hover:bg-indigo-500 disabled:opacity-50"
+                  className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold"
                 >
-                  {actionLoading ? 'Saving...' : 'Save Entry'}
+                  {actionLoading ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
-      {/* TELL ME EVERYTHING DOSSIER DRAWER */}
-      <TellMeEverythingDrawer
-        isOpen={isTellMeEverythingOpen}
-        onClose={() => setIsTellMeEverythingOpen(false)}
-        leadId={id}
-      />
     </div>
   );
 };

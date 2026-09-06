@@ -32,13 +32,13 @@ interface CandidateFact {
 }
 
 const OUTCOME_OPTIONS = [
-  { value: "INTERESTED", label: "Interested (Hot)", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" },
-  { value: "PRICING_DISCUSSION", label: "Pricing Discussion", color: "bg-indigo-500/10 text-indigo-400 border-indigo-500/30" },
-  { value: "FOLLOW_UP", label: "Follow-up Required", color: "bg-amber-500/10 text-amber-400 border-amber-500/30" },
-  { value: "DECISION_PENDING", label: "Decision Pending", color: "bg-sky-500/10 text-sky-400 border-sky-500/30" },
-  { value: "NOT_INTERESTED", label: "Not Interested", color: "bg-slate-500/10 text-slate-400 border-slate-500/30" },
-  { value: "WON", label: "Closed / Won 🎉", color: "bg-purple-500/10 text-purple-400 border-purple-500/30" },
-  { value: "LOST", label: "Lost", color: "bg-rose-500/10 text-rose-400 border-rose-500/30" },
+  { value: "INTERESTED", label: "Interested (Hot)", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  { value: "PRICING_DISCUSSION", label: "Pricing Discussion", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+  { value: "FOLLOW_UP", label: "Follow-up Required", color: "bg-amber-50 text-amber-700 border-amber-200" },
+  { value: "DECISION_PENDING", label: "Decision Pending", color: "bg-sky-50 text-sky-700 border-sky-200" },
+  { value: "NOT_INTERESTED", label: "Not Interested", color: "bg-slate-100 text-slate-600 border-slate-200" },
+  { value: "WON", label: "Closed / Won 🎉", color: "bg-purple-50 text-purple-700 border-purple-200" },
+  { value: "LOST", label: "Lost", color: "bg-rose-50 text-rose-700 border-rose-200" },
 ];
 
 export function PostDemoModal({
@@ -105,8 +105,8 @@ export function PostDemoModal({
     setNewFactText("");
   };
 
-  const handleRemoveCandidateFact = (idx: number) => {
-    setCandidateFacts((prev) => prev.filter((_, i) => i !== idx));
+  const handleRemoveCandidateFact = (index: number) => {
+    setCandidateFacts((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -120,10 +120,10 @@ export function PostDemoModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outcome,
-          notes,
-          nextAction,
-          nextActionAt: nextActionAt ? new Date(nextActionAt).toISOString() : null,
-          candidateFacts,
+          notes: notes.trim() || undefined,
+          nextAction: nextAction.trim() || undefined,
+          nextActionAt: nextActionAt ? new Date(nextActionAt).toISOString() : undefined,
+          candidateFacts: candidateFacts.length > 0 ? candidateFacts : undefined,
         }),
       });
 
@@ -157,24 +157,24 @@ export function PostDemoModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200">
+      <div className="relative w-full max-w-2xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden my-8">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/50">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
               <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-white">Post-Demo Wrap-Up & Workflow</h2>
-              <p className="text-xs text-slate-400">
+              <h2 className="text-base font-bold text-slate-900">Post-Demo Wrap-Up & Workflow</h2>
+              <p className="text-xs text-slate-500">
                 Log final outcome, schedule next action, and record customer facts safely.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-200 transition rounded-lg hover:bg-slate-800"
+            className="p-1.5 text-slate-400 hover:text-slate-700 transition rounded-lg hover:bg-slate-100"
           >
             <X className="w-5 h-5" />
           </button>
@@ -183,15 +183,15 @@ export function PostDemoModal({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {errorMessage && (
-            <div className="flex items-center gap-2 p-3 text-xs bg-rose-950/40 text-rose-300 border border-rose-800 rounded-xl">
-              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+            <div className="flex items-center gap-2 p-3 text-xs bg-rose-50 text-rose-800 border border-rose-200 rounded-xl">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
               <span>{errorMessage}</span>
             </div>
           )}
 
           {/* 1. Outcome Selector */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
               Demo Outcome *
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -202,10 +202,10 @@ export function PostDemoModal({
                     key={opt.value}
                     type="button"
                     onClick={() => setOutcome(opt.value)}
-                    className={`p-2.5 rounded-xl text-xs font-medium border text-left transition ${
+                    className={`p-2.5 rounded-xl text-xs font-semibold border text-left transition ${
                       isSelected
-                        ? `${opt.color} ring-2 ring-indigo-500/50`
-                        : "bg-slate-950/40 border-slate-800 text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
+                        ? `${opt.color} ring-2 ring-indigo-500 shadow-xs`
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                     }`}
                   >
                     {opt.label}
@@ -217,7 +217,7 @@ export function PostDemoModal({
 
           {/* 2. Demo Notes */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
               Demo Notes & Customer Reactions
             </label>
             <textarea
@@ -225,14 +225,14 @@ export function PostDemoModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="What resonated most? What concerns or questions came up? Any pricing commitments or timeline mentioned?"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
 
           {/* 3. Next Action & Next Action Date */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Next Action
               </label>
               <input
@@ -240,56 +240,56 @@ export function PostDemoModal({
                 value={nextAction}
                 onChange={(e) => setNextAction(e.target.value)}
                 placeholder="e.g. Send proposal, WhatsApp follow-up"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-indigo-500 transition-colors"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Next Action Date & Time
               </label>
-              <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2">
-                <Calendar className="w-4 h-4 text-slate-500" />
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:bg-white focus-within:border-indigo-500 transition-colors">
+                <Calendar className="w-4 h-4 text-slate-400" />
                 <input
                   type="datetime-local"
                   value={nextActionAt}
                   onChange={(e) => setNextActionAt(e.target.value)}
-                  className="w-full bg-transparent text-xs text-slate-200 focus:outline-none"
+                  className="w-full bg-transparent text-xs text-slate-900 focus:outline-none"
                 />
               </div>
             </div>
           </div>
 
           {/* 4. Customer Memory Candidate Facts (Safeguarded) */}
-          <div className="p-4 rounded-xl bg-slate-950/40 border border-slate-800 space-y-3">
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-indigo-400" />
-                <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                   Customer Memory Sync (Candidate Facts)
                 </span>
               </div>
-              <span className="text-[11px] text-slate-400">
+              <span className="text-[11px] text-slate-500">
                 Safe candidate queue • Confirmed facts protected
               </span>
             </div>
 
             {/* List of existing confirmed facts to prevent blind overwrite */}
             {confirmedMemories.length > 0 && (
-              <div className="text-[11px] bg-slate-900/60 p-2.5 rounded-lg border border-slate-800/80 text-slate-400">
-                <span className="font-semibold text-slate-300 block mb-1">
+              <div className="text-[11px] bg-white p-2.5 rounded-lg border border-slate-200 text-slate-600 shadow-xs">
+                <span className="font-bold text-slate-800 block mb-1">
                   Active Confirmed Memories ({confirmedMemories.length}):
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {confirmedMemories.slice(0, 4).map((m) => (
                     <span
                       key={m.id}
-                      className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700/60"
+                      className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200"
                     >
                       {m.category}: {m.content}
                     </span>
                   ))}
                   {confirmedMemories.length > 4 && (
-                    <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400">
+                    <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-500">
                       +{confirmedMemories.length - 4} more
                     </span>
                   )}
@@ -303,10 +303,10 @@ export function PostDemoModal({
                 {candidateFacts.map((cf, idx) => (
                   <li
                     key={idx}
-                    className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200"
+                    className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 text-xs text-slate-800 shadow-xs"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800 text-[10px] font-semibold">
+                      <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold">
                         {cf.category}
                       </span>
                       <span>{cf.fact}</span>
@@ -314,7 +314,7 @@ export function PostDemoModal({
                     <button
                       type="button"
                       onClick={() => handleRemoveCandidateFact(idx)}
-                      className="p-1 text-slate-500 hover:text-rose-400 transition"
+                      className="p-1 text-slate-400 hover:text-rose-600 transition"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -328,7 +328,7 @@ export function PostDemoModal({
               <select
                 value={newFactCat}
                 onChange={(e) => setNewFactCat(e.target.value as any)}
-                className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-indigo-500"
+                className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 shadow-xs"
               >
                 <option value="NEED">Need</option>
                 <option value="PAIN_POINT">Pain Point</option>
@@ -349,13 +349,13 @@ export function PostDemoModal({
                   }
                 }}
                 placeholder="e.g. Budget approved for ₹18,000/yr, rollout target by next Monday..."
-                className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 shadow-xs"
               />
               <button
                 type="button"
                 onClick={handleAddCandidateFact}
                 disabled={!newFactText.trim()}
-                className="p-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 rounded-lg text-xs transition"
+                className="p-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 disabled:opacity-40 text-slate-700 rounded-lg text-xs transition"
                 title="Add candidate memory fact"
               >
                 <Plus className="w-4 h-4" />
@@ -364,11 +364,11 @@ export function PostDemoModal({
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl transition"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition"
             >
               Cancel
             </button>
@@ -381,9 +381,9 @@ export function PostDemoModal({
                   if (form) form.requestSubmit();
                 }}
                 disabled={isSubmitting}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 hover:bg-emerald-900/60 rounded-xl transition shadow-sm"
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 rounded-xl transition shadow-xs"
               >
-                <MessageSquare className="w-4 h-4 text-emerald-400" />
+                <MessageSquare className="w-4 h-4 text-emerald-600" />
                 <span>Save & Send WhatsApp</span>
               </button>
             )}

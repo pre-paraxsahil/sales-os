@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -26,7 +29,7 @@ export async function GET(req: NextRequest) {
       orderBy: { scheduledAt: "desc" },
     });
 
-    return NextResponse.json({ success: true, demos });
+    return NextResponse.json({ success: true, demos, data: demos });
   } catch (error: any) {
     console.error("Error fetching demos:", error);
     return NextResponse.json(
@@ -39,11 +42,26 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { leadId, title, scheduledAt, durationMinutes, notes } = body;
+    const { leadId, title, scheduledAt, durationMinutes = 30, notes, meetingUrl } = body;
 
     if (!leadId) {
       return NextResponse.json(
         { success: false, error: "leadId is required." },
+        { status: 400 }
+      );
+    }
+
+    if (!scheduledAt) {
+      return NextResponse.json(
+        { success: false, error: "scheduledAt is required." },
+        { status: 400 }
+      );
+    }
+
+    const demoScheduledAt = new Date(scheduledAt);
+    if (isNaN(demoScheduledAt.getTime())) {
+      return NextResponse.json(
+        { success: false, error: "Invalid scheduledAt date format." },
         { status: 400 }
       );
     }
@@ -60,12 +78,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const demoScheduledAt = scheduledAt ? new Date(scheduledAt) : new Date();
+    const duration = durationMinutes ? parseInt(String(durationMinutes), 10) : 30;
+    const endTime = new Date(demoScheduledAt.getTime() + duration * 60000);
     const leadContactName = lead.contact?.name;
     const leadBizName = lead.business?.name;
-    const demoTitle = title || `Product Demo with ${leadContactName || leadBizName || lead.title}`;
+    const demoTitle = title || `Product Demo: ${leadBizName || leadContactName || lead.title}`;
 
-    // Create demo & activity in transaction
+    // Create demo, scheduleBlock, reminder & activity in transaction
     const newDemo = await prisma.$transaction(async (tx) => {
       const created = await tx.demo.create({
         data: {
@@ -73,8 +92,9 @@ export async function POST(req: NextRequest) {
           contactId: lead.contactId,
           userId: lead.userId,
           scheduledAt: demoScheduledAt,
-          durationMinutes: durationMinutes ? parseInt(durationMinutes, 10) : 30,
+          durationMinutes: duration,
           status: "SCHEDULED",
+          meetingUrl: meetingUrl?.trim() || null,
           notes: notes ? `${demoTitle}\n${notes}` : demoTitle,
         },
         include: {
@@ -88,12 +108,49 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // ScheduleBlock for Schedule Calendar synchronization
+      await tx.scheduleBlock.create({
+        data: {
+          userId: lead.userId,
+          leadId,
+          title: demoTitle,
+          blockType: "DEMO",
+          startTime: demoScheduledAt,
+          endTime,
+          isProtected: true,
+          priority: "CRITICAL",
+          notes: notes?.trim() || null,
+        },
+      });
+
+      // Reminder for push alerts and Today notifications
+      await tx.reminder.create({
+        data: {
+          userId: lead.userId,
+          leadId,
+          title: `Upcoming Demo: ${lead.title}`,
+          message: notes?.trim() || `Product demo scheduled for ${demoScheduledAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
+          level: "HIGH",
+          type: "DEMO",
+          entityId: created.id,
+          entityType: "DEMO",
+          remindAt: demoScheduledAt,
+        },
+      });
+
       // Update lead status to QUALIFIED if appropriate
       if (lead.status === "NEW" || lead.status === "CONTACTED") {
         await tx.lead.update({
           where: { id: leadId },
           data: {
             status: "QUALIFIED",
+            nextActionDate: demoScheduledAt,
+          },
+        });
+      } else {
+        await tx.lead.update({
+          where: { id: leadId },
+          data: {
             nextActionDate: demoScheduledAt,
           },
         });
@@ -107,13 +164,14 @@ export async function POST(req: NextRequest) {
           type: "DEMO_SCHEDULED",
           title: `Demo Scheduled: ${demoTitle}`,
           description: `Scheduled for ${demoScheduledAt.toLocaleString()}`,
+          occurredAt: new Date(),
         },
       });
 
       return created;
     });
 
-    return NextResponse.json({ success: true, demo: newDemo }, { status: 201 });
+    return NextResponse.json({ success: true, demo: newDemo, data: newDemo }, { status: 201 });
   } catch (error: any) {
     console.error("Error scheduling demo:", error);
     return NextResponse.json(

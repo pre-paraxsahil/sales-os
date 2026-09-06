@@ -12,7 +12,47 @@ export async function syncSmartReminders(userId?: string | null) {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
   const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
-  // 1. Demos scheduled within demoNoticeWindow minutes
+  // 1. Overdue HOT Leads (Highest priority)
+  const overdueHotFollowUps = await prisma.followUp.findMany({
+    where: {
+      status: 'PENDING',
+      scheduledAt: { lt: now },
+      lead: { temperature: 'HOT' },
+      ...(userId ? { userId } : {}),
+    },
+    include: {
+      lead: { include: { contact: true, business: true } },
+    },
+    take: 5,
+  });
+
+  for (const fu of overdueHotFollowUps) {
+    const existing = await prisma.reminder.findFirst({
+      where: {
+        entityId: fu.id,
+        entityType: 'FOLLOW_UP',
+        completedAt: null,
+      },
+    });
+
+    if (!existing) {
+      await prisma.reminder.create({
+        data: {
+          userId: fu.userId || userId,
+          leadId: fu.leadId,
+          entityId: fu.id,
+          entityType: 'FOLLOW_UP',
+          type: 'OVERDUE_HOT',
+          level: 'CRITICAL',
+          title: `🔥 OVERDUE HOT LEAD: ${fu.lead?.contact?.name || fu.lead?.business?.name || 'Lead'}`,
+          message: `Scheduled follow-up missed. High buying intent at risk. Call immediately.`,
+          remindAt: now,
+        },
+      });
+    }
+  }
+
+  // 2. Demos scheduled within demoNoticeWindow minutes
   const soonDemoWindow = new Date(now.getTime() + demoNoticeWindow * 60 * 1000);
   const upcomingDemos = await prisma.demo.findMany({
     where: {
@@ -49,7 +89,7 @@ export async function syncSmartReminders(userId?: string | null) {
           entityType: 'DEMO',
           type: 'DEMO',
           level: 'CRITICAL',
-          title: `Demo in ${minutesUntil}m: ${demo.lead?.business?.name || demo.lead?.title || 'Prospect'}`,
+          title: `🎯 Demo in ${minutesUntil}m: ${demo.lead?.business?.name || demo.lead?.title || 'Prospect'}`,
           message: `Product walkthrough scheduled with ${demo.lead?.contact?.name || 'Contact'}. Prepare battle plan.`,
           remindAt: demo.scheduledAt,
         },
@@ -57,11 +97,12 @@ export async function syncSmartReminders(userId?: string | null) {
     }
   }
 
-  // 2. Overdue Follow-ups
-  const overdueFollowUps = await prisma.followUp.findMany({
+  // 3. Regular Overdue Follow-ups (WARM/COLD)
+  const otherOverdueFollowUps = await prisma.followUp.findMany({
     where: {
       status: 'PENDING',
       scheduledAt: { lt: now },
+      lead: { temperature: { not: 'HOT' } },
       ...(userId ? { userId } : {}),
     },
     include: {
@@ -72,7 +113,7 @@ export async function syncSmartReminders(userId?: string | null) {
     take: 5,
   });
 
-  for (const fu of overdueFollowUps) {
+  for (const fu of otherOverdueFollowUps) {
     const existing = await prisma.reminder.findFirst({
       where: {
         entityId: fu.id,
@@ -90,7 +131,7 @@ export async function syncSmartReminders(userId?: string | null) {
           entityType: 'FOLLOW_UP',
           type: 'OVERDUE',
           level: 'IMPORTANT',
-          title: `Overdue Callback: ${fu.lead?.contact?.name || fu.lead?.title || 'Lead'}`,
+          title: `⏰ Overdue Callback: ${fu.lead?.contact?.name || fu.lead?.title || 'Lead'}`,
           message: `Follow-up was scheduled for ${new Date(fu.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`,
           remindAt: now,
         },
@@ -98,7 +139,7 @@ export async function syncSmartReminders(userId?: string | null) {
     }
   }
 
-  // 3. Hot Leads without contact in > 48h
+  // 4. Neglected Hot Leads without contact in > 48h
   const twoDaysAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
   const neglectedHotLeads = await prisma.lead.findMany({
     where: {
@@ -129,7 +170,7 @@ export async function syncSmartReminders(userId?: string | null) {
           entityType: 'HOT_LEAD',
           type: 'HOT_LEAD',
           level: 'HIGH',
-          title: `Hot Lead Check-in: ${hl.business?.name || hl.title}`,
+          title: `🔥 Hot Lead Check-in: ${hl.business?.name || hl.title}`,
           message: 'No contact in over 48 hours. Keep buying momentum warm.',
           remindAt: now,
         },
@@ -165,7 +206,7 @@ export async function getActiveReminders(userId?: string | null) {
       { level: 'desc' },
       { remindAt: 'asc' },
     ],
-    take: 10,
+    take: 15,
   });
 }
 

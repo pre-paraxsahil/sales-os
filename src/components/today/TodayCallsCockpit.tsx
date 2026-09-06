@@ -65,21 +65,21 @@ export const TodayCallsCockpit: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-8 text-center space-y-3">
-        <Loader2 className="mx-auto h-7 w-7 animate-spin text-indigo-400" />
-        <p className="text-xs text-slate-400">Loading Today&apos;s Call Cockpit...</p>
+      <div className="rounded-xl border border-slate-200 bg-white p-8 text-center space-y-3 shadow-xs">
+        <Loader2 className="mx-auto h-7 w-7 animate-spin text-indigo-600" />
+        <p className="text-xs text-slate-500">Loading Today&apos;s Call Cockpit...</p>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-5 text-center text-xs">
-        <AlertTriangle className="mx-auto h-6 w-6 text-rose-400 mb-1" />
-        <p className="text-slate-200 font-semibold">{error || 'Unable to load call cockpit.'}</p>
+      <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-5 text-center text-xs">
+        <AlertTriangle className="mx-auto h-6 w-6 text-rose-600 mb-1" />
+        <p className="text-rose-900 font-semibold">{error || 'Unable to load call cockpit.'}</p>
         <button
           onClick={fetchTodayCalls}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700"
+          className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-xs text-slate-700 font-medium hover:bg-slate-50 shadow-xs"
         >
           <RefreshCw className="h-3 w-3" /> Retry
         </button>
@@ -93,59 +93,59 @@ export const TodayCallsCockpit: React.FC = () => {
     <div className="space-y-6">
       {/* Cockpit Counts Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-4">
+        <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-rose-400 uppercase tracking-wider">Overdue Calls</span>
-            <AlertTriangle className="h-4 w-4 text-rose-400" />
+            <span className="text-xs font-bold text-rose-700 uppercase tracking-wider">Overdue Calls</span>
+            <AlertTriangle className="h-4 w-4 text-rose-600" />
           </div>
-          <span className="text-2xl font-black text-rose-300 mt-1 block">{counts.overdue}</span>
-          <p className="text-[11px] text-slate-500 mt-0.5">Need immediate resolution</p>
+          <span className="text-2xl font-black text-rose-950 mt-1 block">{counts.overdue}</span>
+          <p className="text-[11px] text-rose-600/80 mt-0.5 font-medium">Need immediate resolution</p>
         </div>
 
-        <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-4">
+        <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">Today&apos;s Callbacks</span>
-            <Clock className="h-4 w-4 text-amber-400" />
+            <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">Today&apos;s Callbacks</span>
+            <Clock className="h-4 w-4 text-amber-600" />
           </div>
-          <span className="text-2xl font-black text-amber-300 mt-1 block">{counts.today}</span>
-          <p className="text-[11px] text-slate-500 mt-0.5">Scheduled for today</p>
+          <span className="text-2xl font-black text-amber-950 mt-1 block">{counts.today}</span>
+          <p className="text-[11px] text-amber-700/80 mt-0.5 font-medium">Scheduled for today</p>
         </div>
 
-        <div className="rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-4">
+        <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Hot Prospects</span>
-            <Flame className="h-4 w-4 text-indigo-400" />
+            <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Hot Prospects</span>
+            <Flame className="h-4 w-4 text-indigo-600" />
           </div>
-          <span className="text-2xl font-black text-indigo-300 mt-1 block">{counts.hotLeads}</span>
-          <p className="text-[11px] text-slate-500 mt-0.5">High buying intent</p>
+          <span className="text-2xl font-black text-indigo-950 mt-1 block">{counts.hotLeads}</span>
+          <p className="text-[11px] text-indigo-600/80 mt-0.5 font-medium">High buying intent</p>
         </div>
 
         <Link
           href="/schedule"
-          className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4 block hover:border-emerald-500/50 hover:bg-emerald-950/30 transition group"
+          className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 block hover:border-emerald-300 hover:bg-emerald-50/80 transition group shadow-xs"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider group-hover:underline">
+            <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider group-hover:underline">
               Scheduled Demos
             </span>
-            <Calendar className="h-4 w-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+            <Calendar className="h-4 w-4 text-emerald-600 group-hover:scale-110 transition-transform" />
           </div>
-          <span className="text-2xl font-black text-emerald-300 mt-1 block">{counts.demos}</span>
-          <p className="text-[11px] text-slate-500 mt-0.5">Product demos today →</p>
+          <span className="text-2xl font-black text-emerald-950 mt-1 block">{counts.demos}</span>
+          <p className="text-[11px] text-emerald-700/80 mt-0.5 font-medium">Product demos today →</p>
         </Link>
       </div>
 
       {/* 1. OVERDUE CALLS SECTION */}
       {overdue.length > 0 && (
-        <div className="rounded-xl border border-rose-500/40 bg-rose-950/10 p-5 space-y-3">
-          <div className="flex items-center justify-between border-b border-rose-500/20 pb-2.5">
+        <div className="rounded-xl border border-rose-200 bg-rose-50/30 p-5 space-y-3 shadow-xs">
+          <div className="flex items-center justify-between border-b border-rose-200 pb-2.5">
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full bg-rose-500 animate-ping" />
-              <h3 className="text-xs font-bold text-rose-400 uppercase tracking-wider">
+              <h3 className="text-xs font-bold text-rose-800 uppercase tracking-wider">
                 Overdue Call Follow-ups ({overdue.length})
               </h3>
             </div>
-            <span className="text-[11px] text-rose-400 font-mono">Priority Action Required</span>
+            <span className="text-[11px] text-rose-700 font-semibold font-mono">Priority Action Required</span>
           </div>
 
           <div className="space-y-2.5">
@@ -154,22 +154,22 @@ export const TodayCallsCockpit: React.FC = () => {
               return (
                 <div
                   key={item.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-900/90 p-3 text-xs"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3.5 text-xs shadow-xs"
                 >
                   <div className="flex items-start gap-2.5">
-                    <div className="rounded-md p-2 bg-rose-950/40 border border-rose-500/30 text-rose-300 shrink-0">
+                    <div className="rounded-md p-2 bg-rose-50 border border-rose-200 text-rose-600 shrink-0">
                       <PhoneCall className="h-4 w-4" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-slate-100">{lead?.title}</span>
-                        <span className="text-rose-400 text-[10px] font-mono font-bold">
+                        <span className="font-bold text-slate-900">{lead?.title}</span>
+                        <span className="text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold">
                           Due: {new Date(item.scheduledAt).toLocaleDateString()}
                         </span>
                       </div>
-                      <p className="text-slate-400 text-[11px] mt-0.5">
+                      <p className="text-slate-600 text-[11px] mt-0.5">
                         {item.notes || 'Overdue callback'} • Contact:{' '}
-                        <strong className="text-slate-300">{lead?.contact?.name}</strong> (
+                        <strong className="text-slate-800">{lead?.contact?.name}</strong> (
                         {lead?.contact?.phone})
                       </p>
                     </div>
@@ -178,20 +178,20 @@ export const TodayCallsCockpit: React.FC = () => {
                   <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                     <button
                       onClick={() => handleCallNow(lead)}
-                      className="flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 transition-all shadow-sm"
+                      className="flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 active:scale-[0.98] transition shadow-xs"
                     >
                       <Phone className="h-3 w-3" />
                       <span>CALL NOW</span>
                     </button>
                     <button
                       onClick={() => handleLogResult(lead)}
-                      className="flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700"
+                      className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-xs"
                     >
                       Log Result
                     </button>
                     <Link
                       href={`/leads/${lead?.id}`}
-                      className="rounded-md border border-slate-800 p-1.5 text-slate-400 hover:text-white"
+                      className="rounded-md border border-slate-200 p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition"
                       title="View Lead"
                     >
                       <ArrowRight className="h-4 w-4" />
@@ -205,11 +205,11 @@ export const TodayCallsCockpit: React.FC = () => {
       )}
 
       {/* 2. TODAY'S SCHEDULED CALLS */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-3">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-3 shadow-xs">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
           <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-amber-400" />
-            <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+            <Clock className="h-4 w-4 text-amber-500" />
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
               Today&apos;s Scheduled Callbacks ({today.length})
             </h3>
           </div>
@@ -217,9 +217,9 @@ export const TodayCallsCockpit: React.FC = () => {
         </div>
 
         {today.length === 0 ? (
-          <div className="p-6 text-center text-xs text-slate-500">
-            <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-500/60 mb-1" />
-            <p className="text-slate-300 font-medium">No pending callbacks scheduled for today.</p>
+          <div className="p-6 text-center text-xs text-slate-500 bg-slate-50/50 rounded-lg border border-slate-100">
+            <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-600 mb-1" />
+            <p className="text-slate-800 font-semibold">No pending callbacks scheduled for today.</p>
             <p className="text-[11px] text-slate-500 mt-0.5">Use Quick Add or Lead Profile to schedule call windows.</p>
           </div>
         ) : (
@@ -229,22 +229,22 @@ export const TodayCallsCockpit: React.FC = () => {
               return (
                 <div
                   key={item.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/70 p-3 text-xs"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3.5 text-xs"
                 >
                   <div className="flex items-start gap-2.5">
-                    <div className="rounded-md p-2 bg-amber-950/40 border border-amber-500/30 text-amber-300 shrink-0">
+                    <div className="rounded-md p-2 bg-amber-50 border border-amber-200 text-amber-600 shrink-0">
                       <Clock className="h-4 w-4" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-slate-100">{lead?.title}</span>
-                        <span className="text-amber-400 text-[10px] font-mono font-bold">
+                        <span className="font-bold text-slate-900">{lead?.title}</span>
+                        <span className="text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold">
                           {new Date(item.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
-                      <p className="text-slate-400 text-[11px] mt-0.5">
+                      <p className="text-slate-600 text-[11px] mt-0.5">
                         {item.notes || 'Scheduled callback'} • Contact:{' '}
-                        <strong className="text-slate-300">{lead?.contact?.name}</strong> (
+                        <strong className="text-slate-800">{lead?.contact?.name}</strong> (
                         {lead?.contact?.phone})
                       </p>
                     </div>
@@ -253,20 +253,20 @@ export const TodayCallsCockpit: React.FC = () => {
                   <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                     <button
                       onClick={() => handleCallNow(lead)}
-                      className="flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 transition-all shadow-sm"
+                      className="flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 active:scale-[0.98] transition shadow-xs"
                     >
                       <Phone className="h-3 w-3" />
                       <span>CALL NOW</span>
                     </button>
                     <button
                       onClick={() => handleLogResult(lead)}
-                      className="flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700"
+                      className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-xs"
                     >
                       Log Result
                     </button>
                     <Link
                       href={`/leads/${lead?.id}`}
-                      className="rounded-md border border-slate-800 p-1.5 text-slate-400 hover:text-white"
+                      className="rounded-md border border-slate-200 p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition"
                       title="View Lead"
                     >
                       <ArrowRight className="h-4 w-4" />
@@ -281,11 +281,11 @@ export const TodayCallsCockpit: React.FC = () => {
 
       {/* 3. HOT PROSPECTS SECTION */}
       {hotLeads.length > 0 && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-3 shadow-xs">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
             <div className="flex items-center gap-2">
-              <Flame className="h-4 w-4 text-rose-400" />
-              <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+              <Flame className="h-4 w-4 text-rose-500" />
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                 Hot Leads to Engage ({hotLeads.length})
               </h3>
             </div>
@@ -296,21 +296,21 @@ export const TodayCallsCockpit: React.FC = () => {
             {hotLeads.map((lead: any) => (
               <div
                 key={lead.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/70 p-3 text-xs"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3.5 text-xs"
               >
                 <div className="flex items-start gap-2.5">
-                  <div className="rounded-md p-2 bg-rose-950/30 border border-rose-500/30 text-rose-400 shrink-0">
+                  <div className="rounded-md p-2 bg-rose-50 border border-rose-200 text-rose-600 shrink-0">
                     <Flame className="h-4 w-4" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-slate-100">{lead.title}</span>
-                      <span className="rounded bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.2 text-[10px] font-semibold text-indigo-300">
+                      <span className="font-bold text-slate-900">{lead.title}</span>
+                      <span className="rounded bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700">
                         {lead.status}
                       </span>
                     </div>
-                    <p className="text-slate-400 text-[11px] mt-0.5">
-                      Contact: <strong className="text-slate-300">{lead.contact?.name}</strong> (
+                    <p className="text-slate-600 text-[11px] mt-0.5">
+                      Contact: <strong className="text-slate-800">{lead.contact?.name}</strong> (
                       {lead.contact?.phone}) • Source: {lead.source}
                     </p>
                   </div>
@@ -319,20 +319,20 @@ export const TodayCallsCockpit: React.FC = () => {
                 <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                   <button
                     onClick={() => handleCallNow(lead)}
-                    className="flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 transition-all shadow-sm"
+                    className="flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 active:scale-[0.98] transition shadow-xs"
                   >
                     <Phone className="h-3 w-3" />
                     <span>CALL NOW</span>
                   </button>
                   <button
                     onClick={() => handleLogResult(lead)}
-                    className="flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700"
+                    className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-xs"
                   >
                     Log Result
                   </button>
                   <Link
                     href={`/leads/${lead.id}`}
-                    className="rounded-md border border-slate-800 p-1.5 text-slate-400 hover:text-white"
+                    className="rounded-md border border-slate-200 p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition"
                     title="View Lead"
                   >
                     <ArrowRight className="h-4 w-4" />

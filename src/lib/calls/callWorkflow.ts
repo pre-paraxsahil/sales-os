@@ -115,47 +115,112 @@ export async function executePostCallWorkflow(
       },
     });
 
-    // 5. If outcome is FOLLOW_UP_REQUIRED (or explicit nextActionAt provided), handle FollowUp record
+    // 5. If nextActionAt provided, create FollowUp, ScheduleBlock, and Reminder
     let followUp = null;
-    if (outcome === 'FOLLOW_UP_REQUIRED' && parsedNextActionAt) {
-      // Check if duplicate follow-up exists for same time
-      const existingFollowUp = await tx.followUp.findFirst({
-        where: {
-          leadId,
-          status: 'PENDING',
-          scheduledAt: parsedNextActionAt,
-        },
-      });
+    if (parsedNextActionAt) {
+      const isDemoOutcome = outcome === 'DEMO_BOOKED' || outcome === 'SCHEDULED_DEMO';
 
-      if (!existingFollowUp) {
-        followUp = await tx.followUp.create({
+      if (isDemoOutcome) {
+        // Create Demo record
+        const createdDemo = await tx.demo.create({
           data: {
             leadId,
             userId: currentLead.userId,
-            type: 'CALL',
-            status: 'PENDING',
+            contactId: currentLead.contactId,
+            status: 'SCHEDULED',
             scheduledAt: parsedNextActionAt,
-            notes: nextAction || `Follow-up required from call logged on ${new Date().toLocaleDateString()}`,
+            durationMinutes: 30,
+            notes: nextAction || `Product Demo booked via call on ${new Date().toLocaleDateString()}`,
+          },
+        });
+
+        // Create ScheduleBlock for Demo
+        await tx.scheduleBlock.create({
+          data: {
+            userId: currentLead.userId,
+            leadId,
+            title: `Demo: ${currentLead.business?.name || currentLead.contact?.name || currentLead.title}`,
+            blockType: 'DEMO',
+            startTime: parsedNextActionAt,
+            endTime: new Date(parsedNextActionAt.getTime() + 30 * 60000),
+            isProtected: true,
+            priority: 'CRITICAL',
+            notes: nextAction || notes || null,
+          },
+        });
+
+        // Create Reminder for Demo
+        await tx.reminder.create({
+          data: {
+            userId: currentLead.userId,
+            leadId,
+            title: `Upcoming Demo: ${currentLead.title}`,
+            message: nextAction || `Demo scheduled for ${parsedNextActionAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+            level: 'HIGH',
+            type: 'DEMO',
+            entityId: createdDemo.id,
+            entityType: 'DEMO',
+            remindAt: parsedNextActionAt,
           },
         });
       } else {
-        followUp = existingFollowUp;
-      }
-    }
+        // Create or find FollowUp record
+        const existingFollowUp = await tx.followUp.findFirst({
+          where: {
+            leadId,
+            status: 'PENDING',
+            scheduledAt: parsedNextActionAt,
+          },
+        });
 
-    // 6. If outcome is DEMO_BOOKED and nextActionAt provided, create Demo record
-    if ((outcome === 'DEMO_BOOKED' || outcome === 'SCHEDULED_DEMO') && parsedNextActionAt) {
-      await tx.demo.create({
-        data: {
-          leadId,
-          userId: currentLead.userId,
-          contactId: currentLead.contactId,
-          status: 'SCHEDULED',
-          scheduledAt: parsedNextActionAt,
-          durationMinutes: 30,
-          notes: nextAction || `Product Demo booked via call on ${new Date().toLocaleDateString()}`,
-        },
-      });
+        if (!existingFollowUp) {
+          followUp = await tx.followUp.create({
+            data: {
+              leadId,
+              userId: currentLead.userId,
+              type: nextAction?.toLowerCase().includes('whatsapp') ? 'WHATSAPP' : 'CALL',
+              status: 'PENDING',
+              scheduledAt: parsedNextActionAt,
+              notes: nextAction || `Follow-up required from call logged on ${new Date().toLocaleDateString()}`,
+            },
+          });
+        } else {
+          followUp = existingFollowUp;
+        }
+
+        // Create ScheduleBlock for Follow-up / Callback
+        const blockType = nextAction?.toLowerCase().includes('callback') || outcome === 'NO_ANSWER' || outcome === 'BUSY'
+          ? 'CALLBACK'
+          : 'FOLLOW_UP';
+
+        await tx.scheduleBlock.create({
+          data: {
+            userId: currentLead.userId,
+            leadId,
+            title: `${nextAction || 'Follow-up'}: ${currentLead.title}`,
+            blockType,
+            startTime: parsedNextActionAt,
+            endTime: new Date(parsedNextActionAt.getTime() + 15 * 60000),
+            priority: 'HIGH',
+            notes: notes || null,
+          },
+        });
+
+        // Create Reminder for Follow-up
+        await tx.reminder.create({
+          data: {
+            userId: currentLead.userId,
+            leadId,
+            title: `Action Due: ${nextAction || 'Follow-up with customer'}`,
+            message: `Scheduled follow-up for ${currentLead.title} (${currentLead.contact?.phone || currentLead.contact?.name || ''})`,
+            level: 'HIGH',
+            type: 'FOLLOW_UP',
+            entityId: followUp.id,
+            entityType: 'FOLLOW_UP',
+            remindAt: parsedNextActionAt,
+          },
+        });
+      }
     }
 
     // 7. Synchronize with Customer Memory (Build 05)

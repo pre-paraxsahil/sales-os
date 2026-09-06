@@ -72,16 +72,35 @@ export async function POST(req: NextRequest) {
     }
 
     const saleAmount = Number(amount);
-    const saleDate = closedAt ? new Date(closedAt) : new Date();
+    
+    // Parse closedAt date safely
+    let saleDate = new Date();
+    if (closedAt) {
+      const parsed = new Date(closedAt);
+      if (!isNaN(parsed.getTime())) {
+        saleDate = parsed;
+      }
+    }
+
+    // Determine user association
+    const defaultUser = await prisma.user.findFirst({
+      where: { role: 'OWNER' },
+      select: { id: true },
+    });
+    const userId = defaultUser?.id || null;
 
     let leadTitle = 'Direct Sale';
+    let leadUserId = userId;
+
     if (leadId) {
       const lead = await prisma.lead.findUnique({
         where: { id: leadId },
-        select: { id: true, title: true },
+        select: { id: true, title: true, userId: true },
       });
       if (lead) {
         leadTitle = lead.title;
+        if (lead.userId) leadUserId = lead.userId;
+
         // Update lead status to WON
         await prisma.lead.update({
           where: { id: leadId },
@@ -101,11 +120,13 @@ export async function POST(req: NextRequest) {
 
     const sale = await prisma.sale.create({
       data: {
+        userId: leadUserId,
         leadId: leadId || null,
         amount: saleAmount,
         currency,
         status: 'COMPLETED',
         closedAt: saleDate,
+        occurredAt: saleDate,
       },
       include: {
         lead: {
@@ -120,6 +141,7 @@ export async function POST(req: NextRequest) {
     // Record activity
     await prisma.activity.create({
       data: {
+        userId: leadUserId,
         leadId: leadId || null,
         type: ActivityType.SALE_RECORDED,
         title: `Sale Recorded: ₹${saleAmount.toLocaleString('en-IN')}`,

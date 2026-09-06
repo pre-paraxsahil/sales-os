@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 import { validateCreateLead } from '@/lib/validations/lead';
 import { Prisma } from '@prisma/client';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);

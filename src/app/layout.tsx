@@ -35,8 +35,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="bg-[#0b0f19] text-slate-100 selection:bg-indigo-500 selection:text-white">
+    <html lang="en" className="light">
+      <body className="bg-slate-50 text-slate-900 selection:bg-indigo-600 selection:text-white font-sans antialiased min-h-screen">
         <PwaRegistrar />
         <AppShell>{children}</AppShell>
       </body>

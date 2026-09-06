@@ -7,6 +7,8 @@ export const DEFAULT_WORK_HOURS_CONFIG: WorkHoursConfig = {
   endHour: 18,
   endMinute: 0,
   workingDays: [1, 2, 3, 4, 5, 6], // Mon-Sat
+  weeklyOffDays: [0], // Sunday
+  timezone: 'Asia/Kolkata',
   lunch: {
     startHour: 14,
     startMinute: 0,
@@ -17,6 +19,7 @@ export const DEFAULT_WORK_HOURS_CONFIG: WorkHoursConfig = {
   reminderThresholds: {
     demoMinutesBefore: 20,
     overdueCheckMinutes: 30,
+    reminderLeadTimeMinutes: 10,
   },
 };
 

@@ -2,23 +2,25 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Search,
   Plus,
-  Filter,
   ArrowUpDown,
   Phone,
   PhoneCall,
   MessageSquare,
   Building,
-  Calendar,
   Flame,
   Clock,
   ChevronRight,
   AlertCircle,
   RefreshCw,
   User,
-  Zap,
+  MapPin,
+  Trash2,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 import { LeadCreateModal } from './LeadCreateModal';
 import { QuickCallLoggerModal } from '@/components/calls/QuickCallLoggerModal';
@@ -26,6 +28,7 @@ import { QuickWhatsAppModal } from '@/components/whatsapp/QuickWhatsAppModal';
 import { cn } from '@/lib/utils';
 
 export const LeadListClient: React.FC = () => {
+  const router = useRouter();
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,9 +38,13 @@ export const LeadListClient: React.FC = () => {
   const [sort, setSort] = useState('priority');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  // Quick Action Modal states for immediate actions
+  // Quick Action Modal states
   const [callModalLead, setCallModalLead] = useState<any | null>(null);
   const [whatsAppLeadId, setWhatsAppLeadId] = useState<string | null>(null);
+
+  // Delete Confirmation State
+  const [leadToDelete, setLeadToDelete] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
@@ -70,6 +77,28 @@ export const LeadListClient: React.FC = () => {
   useEffect(() => {
     fetchLeads();
   }, [fetchLeads]);
+
+  const handleDeleteLead = async () => {
+    if (!leadToDelete) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/leads/${leadToDelete.id}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setLeadToDelete(null);
+        fetchLeads();
+      } else {
+        alert(json.error || 'Failed to archive/delete lead.');
+      }
+    } catch (err) {
+      console.error('Error deleting lead:', err);
+      alert('Network error deleting lead.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const filterTabs = [
     { id: 'ALL', label: 'All Leads' },
@@ -114,7 +143,7 @@ export const LeadListClient: React.FC = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search leads by name, business, phone number..."
+              placeholder="Search leads by name, business, phone number, city..."
               className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-600 focus:outline-none transition-colors shadow-2xs"
             />
           </div>
@@ -219,26 +248,35 @@ export const LeadListClient: React.FC = () => {
               NEGOTIATION: 'bg-amber-50 text-amber-700 border-amber-200',
               WON: 'bg-emerald-100 text-emerald-800 border-emerald-300 font-black',
               LOST: 'bg-rose-100 text-rose-800 border-rose-200',
+              ARCHIVED: 'bg-slate-200 text-slate-700 border-slate-300',
             }[lead.status as string] || 'bg-slate-100 text-slate-700';
+
+            const lastCall = lead.calls?.[0] || null;
+            const businessName = lead.business?.name || lead.title;
+            const cityName = lead.business?.city || '';
 
             return (
               <div
                 key={lead.id}
-                className="group flex flex-col md:flex-row md:items-center justify-between gap-3.5 rounded-2xl border border-slate-200 bg-white p-4 transition-all hover:border-indigo-300 hover:shadow-md shadow-2xs"
+                onClick={() => router.push(`/leads/${lead.id}`)}
+                className="group flex flex-col md:flex-row md:items-center justify-between gap-3.5 rounded-2xl border border-slate-200 bg-white p-4 transition-all hover:border-indigo-300 hover:shadow-md shadow-2xs cursor-pointer"
               >
                 {/* Left: Lead Identity & Sales Context */}
-                <div className="flex items-start gap-3 min-w-0">
+                <div className="flex items-start gap-3 min-w-0 flex-1">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
                     <Building className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
+                    {/* Row 1: Name, Temperature, Status, Value */}
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Link
-                        href={`/leads/${lead.id}`}
-                        className="text-sm font-black text-slate-900 hover:text-indigo-600 transition-colors truncate"
-                      >
-                        {lead.title}
-                      </Link>
+                      <span className="text-sm font-black text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
+                        {lead.contact?.name || lead.title}
+                      </span>
+                      {businessName && businessName !== (lead.contact?.name || lead.title) && (
+                        <span className="text-xs font-semibold text-slate-600 truncate">
+                          ({businessName})
+                        </span>
+                      )}
                       <span className={cn('rounded-md border px-2 py-0.5 text-[10px]', tempBadge)}>
                         <Flame className="inline h-3 w-3 mr-0.5" />
                         {lead.temperature}
@@ -253,17 +291,18 @@ export const LeadListClient: React.FC = () => {
                       )}
                     </div>
 
+                    {/* Row 2: Phone, City, Business Industry */}
                     <div className="mt-1 flex items-center gap-3 text-xs text-slate-500 flex-wrap">
-                      {lead.contact?.name && (
-                        <span className="flex items-center gap-1 font-semibold text-slate-800">
-                          <User className="h-3.5 w-3.5 text-slate-400" />
-                          {lead.contact.name}
-                        </span>
-                      )}
                       {lead.contact?.phone && (
                         <span className="flex items-center gap-1 font-mono font-bold text-indigo-700">
                           <Phone className="h-3.5 w-3.5 text-slate-400" />
                           {lead.contact.phone}
+                        </span>
+                      )}
+                      {cityName && (
+                        <span className="flex items-center gap-1 text-slate-600 font-medium">
+                          <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                          {cityName}
                         </span>
                       )}
                       {lead.business?.industry && (
@@ -271,24 +310,35 @@ export const LeadListClient: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Next Action info */}
-                    <div className="mt-1.5 flex items-center gap-2 text-xs">
+                    {/* Row 3: Last Call & Next Action info */}
+                    <div className="mt-1.5 flex items-center gap-2 text-xs flex-wrap">
+                      {lastCall ? (
+                        <span className="text-[11px] text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 flex items-center gap-1 font-medium">
+                          <PhoneCall className="h-3 w-3 text-emerald-600" />
+                          Last Call: <strong>{lastCall.outcome.replace(/_/g, ' ')}</strong> (
+                          {new Date(lastCall.occurredAt).toLocaleDateString()})
+                        </span>
+                      ) : null}
+
                       {lead.nextActionDate ? (
                         <span className="text-[11px] text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 flex items-center gap-1">
                           <Clock className="h-3 w-3 text-amber-600" />
                           Next Action: {new Date(lead.nextActionDate).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </span>
-                      ) : (
+                      ) : !lastCall ? (
                         <span className="text-[11px] text-slate-400">
-                          Updated {new Date(lead.updatedAt).toLocaleDateString()}
+                          Added {new Date(lead.createdAt).toLocaleDateString()}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 </div>
 
                 {/* Right: Direct Action Buttons */}
-                <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100 shrink-0 self-end md:self-center">
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100 shrink-0 self-end md:self-center"
+                >
                   <button
                     type="button"
                     onClick={() => setCallModalLead(lead)}
@@ -307,6 +357,15 @@ export const LeadListClient: React.FC = () => {
                     <span>WhatsApp</span>
                   </button>
 
+                  <button
+                    type="button"
+                    onClick={() => setLeadToDelete(lead)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                    title="Delete / Archive Lead"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+
                   <Link
                     href={`/leads/${lead.id}`}
                     className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition"
@@ -318,6 +377,50 @@ export const LeadListClient: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Delete Lead Confirmation Modal */}
+      {leadToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="relative w-full max-w-md rounded-2xl border border-rose-200 bg-white p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600 border border-rose-200">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Archive / Delete Lead</h3>
+                <p className="text-xs text-slate-500">Soft delete with historical record preservation</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-700 leading-relaxed">
+              Are you sure you want to archive <strong>{leadToDelete.title}</strong>?
+              <br />
+              <span className="text-slate-500 text-[11px] block mt-1">
+                All associated calls, customer memory, and sales audit history will remain safely preserved in reports.
+              </span>
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setLeadToDelete(null)}
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleDeleteLead}
+                className="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-500 disabled:opacity-50"
+              >
+                {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                <span>Confirm Archive</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

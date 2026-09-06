@@ -1,6 +1,7 @@
 import React from 'react';
 import { Settings, Shield, Sliders, Database, Key, Bell } from 'lucide-react';
 import { ScheduleSettingsCard } from '@/components/settings/ScheduleSettingsCard';
+import { TargetSettingsCard } from '@/components/settings/TargetSettingsCard';
 import { NotificationSettingsCard } from '@/components/settings/NotificationSettingsCard';
 
 export const metadata = {
@@ -24,6 +25,9 @@ export default function SettingsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Schedule & Working Hours Settings */}
         <ScheduleSettingsCard />
+
+        {/* Sales Target Engine Settings */}
+        <TargetSettingsCard />
 
         {/* PostgreSQL Database Status */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-3 shadow-xs">

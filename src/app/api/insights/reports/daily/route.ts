@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateDailyReport, getDailyReport, listDailyReports } from '@/lib/analytics/reportService';
+import { getDateRangeBounds } from '@/lib/time/salesTimeEngine';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -15,13 +16,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, data: reports });
     }
 
+    const filter = (searchParams.get('filter') || '').toUpperCase();
     const dateParam = searchParams.get('date');
-    const targetDate = dateParam ? new Date(dateParam) : new Date();
+    const force = searchParams.get('force') === 'true';
 
-    // Check existing or auto-generate
-    let report = await getDailyReport(targetDate);
+    let targetDate = new Date();
+    if (filter === 'YESTERDAY') {
+      const bounds = getDateRangeBounds('YESTERDAY');
+      targetDate = bounds.start;
+    } else if (dateParam) {
+      targetDate = new Date(dateParam);
+    }
+
+    let report = null;
+    if (!force) {
+      report = await getDailyReport(targetDate);
+    }
+
     if (!report) {
-      report = await generateDailyReport(targetDate, false);
+      report = await generateDailyReport(targetDate, force);
     }
 
     return NextResponse.json({

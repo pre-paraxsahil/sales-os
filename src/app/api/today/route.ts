@@ -1,17 +1,42 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getTargetPaceStatus } from '@/lib/schedule/targetPaceService';
-import { DEFAULT_SALES_BLOCKS } from '@/lib/schedule/scheduleConfig';
+import { getWorkHoursConfig } from '@/lib/schedule/scheduleConfig';
 import { getActiveReminders } from '@/lib/schedule/reminderService';
+import {
+  getStartAndEndOfDay,
+  getTodayDateString,
+  calculateOfficeStatus,
+  getActiveSalesBlock,
+  getLocalTimeParts,
+} from '@/lib/time/salesTimeEngine';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET() {
   try {
+    const user = (await prisma.user.findFirst({ where: { role: 'OWNER' } })) || (await prisma.user.findFirst());
+    const config = await getWorkHoursConfig(user?.id);
+    const tz = config.timezone || 'Asia/Kolkata';
+
     const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const { start: startOfToday, end: endOfToday } = getStartAndEndOfDay(now, tz);
+    const todayDateStr = getTodayDateString(now, tz);
+
+    // Fetch user's active session for today
+    const activeSession = user
+      ? await prisma.workSession.findFirst({
+          where: {
+            userId: user.id,
+            workDate: todayDateStr,
+            clockOut: null,
+          },
+          orderBy: { clockIn: 'desc' },
+        })
+      : null;
+
+    const officeStatus = calculateOfficeStatus(config, activeSession, now);
 
     const [
       todayCallsCount,
@@ -87,30 +112,8 @@ export async function GET() {
       }),
     ]);
 
-    // Current block resolution
-    const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
-    let currentBlock = null;
-    let nextBlock = null;
-
-    for (let i = 0; i < DEFAULT_SALES_BLOCKS.length; i++) {
-      const b = DEFAULT_SALES_BLOCKS[i];
-      const bStart = b.startHour * 60 + b.startMinute;
-      const bEnd = b.endHour * 60 + b.endMinute;
-
-      if (currentTotalMinutes >= bStart && currentTotalMinutes < bEnd) {
-        const remainingMinutes = bEnd - currentTotalMinutes;
-        currentBlock = {
-          ...b,
-          remainingMinutes,
-          remainingFormatted: `${Math.floor(remainingMinutes / 60)}h ${remainingMinutes % 60}m`,
-          timeRangeFormatted: `${String(b.startHour).padStart(2, '0')}:${String(b.startMinute).padStart(2, '0')} – ${String(b.endHour).padStart(2, '0')}:${String(b.endMinute).padStart(2, '0')}`,
-        };
-        if (i + 1 < DEFAULT_SALES_BLOCKS.length) {
-          nextBlock = DEFAULT_SALES_BLOCKS[i + 1];
-        }
-        break;
-      }
-    }
+    // Active block resolution via unified time engine
+    const { currentBlock, nextBlock } = getActiveSalesBlock(now, config);
 
     // Determine next activity (demo takes precedence over regular follow-up if earlier or equal)
     let nextActivity = null;
@@ -122,7 +125,7 @@ export async function GET() {
         leadId: nextScheduledDemo.leadId,
         title: `Product Demo with ${nextScheduledDemo.lead?.business?.name || nextScheduledDemo.lead?.title || 'Prospect'}`,
         contactName: nextScheduledDemo.lead?.contact?.name,
-        time: nextScheduledDemo.scheduledAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        time: getLocalTimeParts(nextScheduledDemo.scheduledAt, tz).formattedTime,
         countdownMinutes: diffMinutes,
         countdownText: diffMinutes > 60 ? `${Math.floor(diffMinutes / 60)}h ${diffMinutes % 60}m` : `${diffMinutes} minutes`,
       };
@@ -134,7 +137,7 @@ export async function GET() {
         leadId: nextFollowUp.leadId,
         title: `Follow-up with ${nextFollowUp.lead?.contact?.name || nextFollowUp.lead?.title || 'Lead'}`,
         contactName: nextFollowUp.lead?.contact?.name,
-        time: nextFollowUp.scheduledAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        time: getLocalTimeParts(nextFollowUp.scheduledAt, tz).formattedTime,
         countdownMinutes: diffMinutes,
         countdownText: diffMinutes > 60 ? `${Math.floor(diffMinutes / 60)}h ${diffMinutes % 60}m` : `${diffMinutes} minutes`,
       };
@@ -151,6 +154,8 @@ export async function GET() {
           todayDemos: todayDemosCount,
           totalLeads: totalLeadsCount,
         },
+        officeStatus,
+        activeSession,
         targetPace,
         currentBlock,
         nextBlock,

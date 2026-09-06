@@ -1,7 +1,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Bell, X, CheckCircle2, Clock, ShieldCheck, Loader2, Sparkles } from 'lucide-react';
+import {
+  Bell,
+  X,
+  CheckCircle2,
+  Clock,
+  ShieldCheck,
+  Loader2,
+  PhoneCall,
+  MessageSquare,
+  RotateCcw,
+  Calendar,
+  AlertTriangle,
+  ExternalLink,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface NotificationDrawerProps {
@@ -15,20 +28,42 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
   const [loading, setLoading] = useState(true);
   const [pushStatus, setPushStatus] = useState<'prompt' | 'granted' | 'denied' | 'unsupported'>('prompt');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reschedulingId, setReschedulingId] = useState<string | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState<string>('');
+
+  const now = new Date();
 
   const filteredReminders = reminders.filter((r) => {
-    const diffMinutes = (new Date(r.remindAt).getTime() - Date.now()) / 60000;
+    const remindDate = new Date(r.remindAt);
+    const diffMinutes = (remindDate.getTime() - now.getTime()) / 60000;
+    const isMissedOrOverdue =
+      r.status === 'MISSED' || r.level === 'CRITICAL' || remindDate < now;
+
     if (activeTab === 'OVERDUE') {
-      return r.level === 'CRITICAL' || new Date(r.remindAt) < new Date();
+      return isMissedOrOverdue;
     }
     if (activeTab === 'DUE_NOW') {
-      return diffMinutes >= 0 && diffMinutes <= 60;
+      return !isMissedOrOverdue && diffMinutes >= 0 && diffMinutes <= 60;
     }
     if (activeTab === 'UPCOMING') {
       return diffMinutes > 60;
     }
     return true;
   });
+
+  const overdueCount = reminders.filter(
+    (r) => r.status === 'MISSED' || r.level === 'CRITICAL' || new Date(r.remindAt) < now
+  ).length;
+
+  const dueNowCount = reminders.filter((r) => {
+    const diff = (new Date(r.remindAt).getTime() - now.getTime()) / 60000;
+    const isOverdue = r.status === 'MISSED' || r.level === 'CRITICAL' || new Date(r.remindAt) < now;
+    return !isOverdue && diff >= 0 && diff <= 60;
+  }).length;
+
+  const upcomingCount = reminders.filter(
+    (r) => (new Date(r.remindAt).getTime() - now.getTime()) / 60000 > 60
+  ).length;
 
   const fetchReminders = async () => {
     setLoading(true);
@@ -58,14 +93,17 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
 
   if (!isOpen) return null;
 
-  const handleAction = async (id: string, action: 'complete' | 'snooze') => {
+  const handleAction = async (id: string, action: 'complete' | 'snooze' | 'open' | 'reschedule', minutes?: number, newRemindAt?: string) => {
     try {
       await fetch(`/api/reminders/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action: action.toUpperCase(), minutes, newRemindAt }),
       });
       fetchReminders();
+      if (action === 'reschedule') {
+        setReschedulingId(null);
+      }
     } catch (err) {
       console.error('Error updating reminder:', err);
     }
@@ -107,8 +145,8 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
               <Bell className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-900">Notifications & Push Reminders</h2>
-              <p className="text-[11px] text-slate-500">Scheduled action alerts & system reminders</p>
+              <h2 className="text-sm font-bold text-slate-900">Notifications & Real Reminders</h2>
+              <p className="text-[11px] text-slate-500">Live follow-up alarms & sales action queue</p>
             </div>
           </div>
           <button
@@ -119,22 +157,33 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
           </button>
         </div>
 
-        {/* Web Push Banner */}
-        <div className="p-4 bg-indigo-50/50 border-b border-indigo-100/80 flex items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
+        {/* Web Push Status Banner */}
+        <div className="p-3 bg-indigo-50/60 border-b border-indigo-100 flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 min-w-0">
             <ShieldCheck className="h-4 w-4 text-indigo-600 shrink-0" />
-            <div>
-              <span className="font-semibold text-slate-800">Browser Push Alerts: </span>
-              <span className="text-slate-600 font-mono text-[11px] capitalize">{pushStatus}</span>
+            <div className="truncate">
+              <span className="font-semibold text-slate-800">Push Status: </span>
+              <span
+                className={cn(
+                  'font-mono text-[11px] font-bold uppercase',
+                  pushStatus === 'granted'
+                    ? 'text-emerald-700'
+                    : pushStatus === 'denied'
+                    ? 'text-rose-600'
+                    : 'text-amber-700'
+                )}
+              >
+                {pushStatus}
+              </span>
             </div>
           </div>
           {pushStatus !== 'granted' && pushStatus !== 'unsupported' && (
             <button
               onClick={enablePushNotifications}
               disabled={isSubmitting}
-              className="px-2.5 py-1 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[11px] transition shadow-xs flex items-center gap-1 disabled:opacity-50"
+              className="px-2.5 py-1 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[11px] transition shadow-xs flex items-center gap-1 disabled:opacity-50 shrink-0"
             >
-              {isSubmitting ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Enable'}
+              {isSubmitting ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Enable Web Push'}
             </button>
           )}
         </div>
@@ -143,24 +192,9 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
         <div className="flex items-center gap-1.5 p-3 border-b border-slate-200 bg-slate-50/60 overflow-x-auto text-xs">
           {[
             { id: 'ALL', label: 'All', count: reminders.length },
-            {
-              id: 'OVERDUE',
-              label: '🔴 Overdue',
-              count: reminders.filter((r) => r.level === 'CRITICAL' || new Date(r.remindAt) < new Date()).length,
-            },
-            {
-              id: 'DUE_NOW',
-              label: '🟠 Due Now',
-              count: reminders.filter((r) => {
-                const diff = (new Date(r.remindAt).getTime() - Date.now()) / 60000;
-                return diff >= 0 && diff <= 60;
-              }).length,
-            },
-            {
-              id: 'UPCOMING',
-              label: '🟡 Upcoming',
-              count: reminders.filter((r) => (new Date(r.remindAt).getTime() - Date.now()) / 60000 > 60).length,
-            },
+            { id: 'OVERDUE', label: '🔴 Overdue / Missed', count: overdueCount },
+            { id: 'DUE_NOW', label: '🟠 Due Now', count: dueNowCount },
+            { id: 'UPCOMING', label: '🟡 Upcoming', count: upcomingCount },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -190,7 +224,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
           {loading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-16 rounded-xl bg-slate-100 animate-pulse border border-slate-200" />
+                <div key={i} className="h-20 rounded-xl bg-slate-100 animate-pulse border border-slate-200" />
               ))}
             </div>
           ) : filteredReminders.length === 0 ? (
@@ -203,21 +237,30 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
             </div>
           ) : (
             filteredReminders.map((rem) => {
-              const isOverdue = rem.level === 'CRITICAL' || new Date(rem.remindAt) < new Date();
+              const remDate = new Date(rem.remindAt);
+              const isOverdue = rem.status === 'MISSED' || rem.level === 'CRITICAL' || remDate < now;
+              const phone = rem.lead?.contact?.phone;
+              const cleanPhone = phone ? phone.replace(/[^0-9+]/g, '') : '';
+              const isRescheduling = reschedulingId === rem.id;
+
               return (
                 <div
                   key={rem.id}
                   className={cn(
-                    'rounded-xl border p-3.5 shadow-xs transition-all space-y-2',
-                    isOverdue ? 'bg-rose-50/50 border-rose-200' : 'bg-white border-slate-200 hover:border-slate-300'
+                    'rounded-xl border p-3.5 shadow-xs transition-all space-y-2.5',
+                    isOverdue
+                      ? 'bg-rose-50/50 border-rose-200'
+                      : rem.status === 'SNOOZED'
+                      ? 'bg-amber-50/40 border-amber-200'
+                      : 'bg-white border-slate-200 hover:border-slate-300'
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span
                           className={cn(
-                            'inline-block rounded-md px-2 py-0.5 text-[10px] font-bold border',
+                            'inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold border uppercase',
                             rem.title?.toLowerCase().includes('demo')
                               ? 'bg-violet-50 text-violet-700 border-violet-100'
                               : rem.title?.toLowerCase().includes('call')
@@ -226,15 +269,31 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
                           )}
                         >
                           {rem.title?.toLowerCase().includes('demo')
-                            ? '🎥 DEMO'
+                            ? '🎥 Demo'
                             : rem.title?.toLowerCase().includes('call')
-                            ? '📞 CALL'
-                            : '🔔 REMINDER'}
+                            ? '📞 Call'
+                            : '🔔 Alert'}
                         </span>
+
+                        {rem.status && rem.status !== 'PENDING' && (
+                          <span
+                            className={cn(
+                              'text-[9px] font-bold px-1.5 py-0.2 rounded uppercase border',
+                              rem.status === 'MISSED'
+                                ? 'bg-rose-100 text-rose-800 border-rose-300'
+                                : rem.status === 'SNOOZED'
+                                ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                : 'bg-slate-100 text-slate-700 border-slate-200'
+                            )}
+                          >
+                            {rem.status}
+                          </span>
+                        )}
+
                         {rem.lead && (
                           <a
                             href={`/leads/${rem.lead.id}`}
-                            className="text-xs font-bold text-slate-900 hover:underline hover:text-indigo-600 truncate"
+                            className="text-xs font-bold text-slate-900 hover:underline hover:text-indigo-600 truncate max-w-[160px]"
                           >
                             {rem.lead.title}
                           </a>
@@ -242,6 +301,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
                       </div>
                       <h3 className="text-xs font-semibold text-slate-900 leading-snug">{rem.title}</h3>
                     </div>
+
                     <span
                       className={cn(
                         'text-[10px] font-semibold font-mono flex items-center gap-1 shrink-0 px-2 py-0.5 rounded-md border',
@@ -251,47 +311,107 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
                       )}
                     >
                       <Clock className="h-3 w-3" />
-                      {new Date(rem.remindAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {remDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
 
                   {rem.message && (
-                    <div className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                      <span className="font-semibold text-slate-700">Reason: </span>
+                    <div className="text-[11px] text-slate-600 bg-slate-50/80 p-2 rounded-lg border border-slate-100">
+                      <span className="font-semibold text-slate-700">Note: </span>
                       {rem.message}
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
-                    {rem.lead?.contact?.phone ? (
-                      <a
-                        href={`tel:${rem.lead.contact.phone}`}
-                        className="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 text-[11px] font-bold transition flex items-center gap-1"
-                      >
-                        📞 Dial
-                      </a>
-                    ) : rem.leadId ? (
-                      <a
-                        href={`/leads/${rem.leadId}`}
-                        className="text-[11px] font-semibold text-indigo-600 hover:underline"
-                      >
-                        View Lead →
-                      </a>
-                    ) : <div />}
+                  {/* Reschedule inline date picker */}
+                  {isRescheduling && (
+                    <div className="p-2.5 bg-indigo-50/70 rounded-lg border border-indigo-200 space-y-2 text-xs">
+                      <label className="font-bold text-indigo-950 flex items-center gap-1 text-[11px]">
+                        <Calendar className="w-3.5 h-3.5 text-indigo-600" /> Choose New Follow-Up Time:
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="datetime-local"
+                          value={rescheduleDate}
+                          onChange={(e) => setRescheduleDate(e.target.value)}
+                          className="px-2 py-1 text-xs rounded border border-slate-300 bg-white font-mono flex-1 outline-none focus:border-indigo-500"
+                        />
+                        <button
+                          onClick={() => {
+                            if (rescheduleDate) {
+                              handleAction(rem.id, 'reschedule', undefined, new Date(rescheduleDate).toISOString());
+                            }
+                          }}
+                          disabled={!rescheduleDate}
+                          className="px-2.5 py-1 bg-indigo-600 text-white font-bold text-xs rounded hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setReschedulingId(null)}
+                          className="px-2 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
+                  {/* 5-Way Quick Action Bar */}
+                  <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 text-xs flex-wrap gap-1.5">
                     <div className="flex items-center gap-1.5">
+                      {cleanPhone ? (
+                        <>
+                          <a
+                            href={`tel:${cleanPhone}`}
+                            className="px-2 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 text-[11px] font-bold transition flex items-center gap-1"
+                            title="Direct Dial"
+                          >
+                            <PhoneCall className="w-3 h-3 text-emerald-600" /> Call
+                          </a>
+                          <a
+                            href={`https://wa.me/${cleanPhone.replace('+', '')}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-2 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 text-[11px] font-bold transition flex items-center gap-1 shadow-2xs"
+                            title="Direct WhatsApp"
+                          >
+                            <MessageSquare className="w-3 h-3" /> WhatsApp
+                          </a>
+                        </>
+                      ) : rem.leadId ? (
+                        <a
+                          href={`/leads/${rem.leadId}`}
+                          className="text-[11px] font-semibold text-indigo-600 hover:underline flex items-center gap-0.5"
+                        >
+                          View Lead <ExternalLink className="w-3 h-3" />
+                        </a>
+                      ) : null}
+                    </div>
+
+                    <div className="flex items-center gap-1">
                       <button
-                        onClick={() => handleAction(rem.id, 'snooze')}
-                        className="px-2.5 py-1 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px] font-medium transition"
+                        onClick={() => {
+                          setReschedulingId(rem.id);
+                          setRescheduleDate(new Date(Date.now() + 3600000).toISOString().slice(0, 16));
+                        }}
+                        className="px-2 py-1 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px] font-medium transition flex items-center gap-1"
+                        title="Reschedule Follow-up"
                       >
-                        Snooze 15m
+                        <RotateCcw className="w-3 h-3 text-slate-500" /> Reschedule
+                      </button>
+                      <button
+                        onClick={() => handleAction(rem.id, 'snooze', 15)}
+                        className="px-2 py-1 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px] font-medium transition"
+                        title="Snooze 15 minutes"
+                      >
+                        +15m
                       </button>
                       <button
                         onClick={() => handleAction(rem.id, 'complete')}
-                        className="px-2.5 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 text-[11px] font-bold transition shadow-xs flex items-center gap-1"
+                        className="px-2 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 text-[11px] font-bold transition shadow-xs flex items-center gap-1"
+                        title="Mark Completed"
                       >
-                        <CheckCircle2 className="h-3 w-3" />
-                        Done
+                        <CheckCircle2 className="h-3 w-3" /> Done
                       </button>
                     </div>
                   </div>
@@ -303,7 +423,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
 
         {/* Footer */}
         <div className="p-3 border-t border-slate-200 bg-slate-50 text-center text-[11px] text-slate-500 font-medium">
-          Sales OS Active Reminders & Alerts
+          BroStartup Sales OS • Real-Time Notification & Reminder Engine
         </div>
       </div>
     </div>

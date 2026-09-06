@@ -70,12 +70,15 @@ interface ScheduleBlockData {
 }
 
 export function ScheduleClient() {
-  const [activeTab, setActiveTab] = useState<'DAY' | 'WEEK' | 'DEMOS'>('DAY');
+  const [activeTab, setActiveTab] = useState<'DAY' | 'TOMORROW' | 'NEXT_WEEK' | 'WEEK' | 'DEMOS'>('DAY');
   const [demos, setDemos] = useState<DemoItem[]>([]);
   const [scheduleData, setScheduleData] = useState<{
     blocks: ScheduleBlockData[];
     conflicts: any[];
   }>({ blocks: [], conflicts: [] });
+  const [nextDayPlan, setNextDayPlan] = useState<any>(null);
+  const [nextWeekPlan, setNextWeekPlan] = useState<any>(null);
+  const [plannerLoading, setPlannerLoading] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [filter, setFilter] = useState<'ALL' | 'SCHEDULED' | 'COMPLETED'>('ALL');
   const [isRearranging, setIsRearranging] = useState<boolean>(false);
@@ -117,9 +120,37 @@ export function ScheduleClient() {
     }
   }, []);
 
+  const fetchPlannerPlans = useCallback(async (tab: 'TOMORROW' | 'NEXT_WEEK') => {
+    try {
+      setPlannerLoading(true);
+      const planType = tab === 'TOMORROW' ? 'NEXT_DAY' : 'NEXT_WEEK';
+      const res = await fetch(`/api/targets/planner?type=${planType}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          if (tab === 'TOMORROW') {
+            setNextDayPlan(json.data);
+          } else {
+            setNextWeekPlan(json.data);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load planner data:', err);
+    } finally {
+      setPlannerLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchScheduleAndDemos();
   }, [fetchScheduleAndDemos]);
+
+  useEffect(() => {
+    if (activeTab === 'TOMORROW' || activeTab === 'NEXT_WEEK') {
+      fetchPlannerPlans(activeTab);
+    }
+  }, [activeTab, fetchPlannerPlans]);
 
   // Trigger Dynamic Rearrangement
   const handleAutoRearrange = async () => {
@@ -187,7 +218,7 @@ export function ScheduleClient() {
         {/* Top Controls */}
         <div className="flex flex-wrap items-center gap-2">
           {/* View Mode Tabs */}
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs flex-wrap">
             <button
               onClick={() => setActiveTab('DAY')}
               className={cn(
@@ -197,7 +228,31 @@ export function ScheduleClient() {
                   : 'text-slate-600 hover:text-slate-900'
               )}
             >
-              Day View
+              Today
+            </button>
+            <button
+              onClick={() => setActiveTab('TOMORROW')}
+              className={cn(
+                'px-3 py-1.5 rounded-lg transition font-bold flex items-center gap-1',
+                activeTab === 'TOMORROW'
+                  ? 'bg-white text-indigo-900 shadow-xs border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              )}
+            >
+              <Sparkles className="w-3 h-3 text-indigo-600" />
+              Tomorrow&apos;s Plan
+            </button>
+            <button
+              onClick={() => setActiveTab('NEXT_WEEK')}
+              className={cn(
+                'px-3 py-1.5 rounded-lg transition font-bold flex items-center gap-1',
+                activeTab === 'NEXT_WEEK'
+                  ? 'bg-white text-indigo-900 shadow-xs border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              )}
+            >
+              <CalendarIcon className="w-3 h-3 text-indigo-600" />
+              Next Week Plan
             </button>
             <button
               onClick={() => setActiveTab('WEEK')}
@@ -208,7 +263,7 @@ export function ScheduleClient() {
                   : 'text-slate-600 hover:text-slate-900'
               )}
             >
-              Week View
+              Week Overview
             </button>
             <button
               onClick={() => setActiveTab('DEMOS')}
@@ -380,6 +435,301 @@ export function ScheduleClient() {
                 );
               })}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB: TOMORROW'S PLAN */}
+      {activeTab === 'TOMORROW' && (
+        <div className="space-y-4">
+          {plannerLoading ? (
+            <div className="space-y-3 animate-pulse">
+              <div className="h-20 w-full rounded-2xl bg-white border border-slate-200" />
+              <div className="h-48 w-full rounded-2xl bg-white border border-slate-200" />
+            </div>
+          ) : nextDayPlan?.isWeeklyOff ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center space-y-3 shadow-xs">
+              <div className="h-12 w-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center mx-auto text-xl font-bold">
+                ☕
+              </div>
+              <h3 className="text-base font-bold text-slate-900">Tomorrow is your scheduled Weekly Off</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Enjoy your break! The system protects your recovery time. Need to change your working days?
+              </p>
+              <Link
+                href="/settings"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-xs hover:bg-indigo-100 transition"
+              >
+                Configure Working Days →
+              </Link>
+            </div>
+          ) : (
+            <>
+              {/* Summary Bar */}
+              <div className="p-4 sm:p-5 rounded-2xl border border-indigo-200 bg-indigo-50/60 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-white px-2 py-0.5 rounded border border-indigo-200">
+                      Tomorrow&apos;s Strategy
+                    </span>
+                    <span className="text-xs font-bold text-slate-800">{nextDayPlan?.displayDate}</span>
+                  </div>
+                  <h2 className="text-base font-black text-slate-900 mt-1">
+                    {nextDayPlan?.totalCommitments || 0} Scheduled Actions & Outreach Slots
+                  </h2>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    {nextDayPlan?.focusSummary || 'Structured around your office hours with protected lunch and automated pipeline prioritization.'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center shrink-0">
+                  <div className="bg-white p-2.5 rounded-xl border border-indigo-100 shadow-2xs">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Demos</span>
+                    <span className="text-base font-black text-violet-700 font-mono">
+                      {nextDayPlan?.demosCount || 0}
+                    </span>
+                  </div>
+                  <div className="bg-white p-2.5 rounded-xl border border-indigo-100 shadow-2xs">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Follow-ups</span>
+                    <span className="text-base font-black text-indigo-700 font-mono">
+                      {nextDayPlan?.followUpsCount || 0}
+                    </span>
+                  </div>
+                  <div className="bg-white p-2.5 rounded-xl border border-indigo-100 shadow-2xs">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Commitments</span>
+                    <span className="text-base font-black text-rose-700 font-mono">
+                      {nextDayPlan?.totalCommitments || 0}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Timeline List */}
+              <div className="space-y-3">
+                {nextDayPlan?.timeline?.map((item: any) => {
+                  const isLunch = item.activityType === 'LUNCH';
+                  const isDemo = item.activityType === 'DEMO';
+                  const isFollowUp = item.activityType === 'FOLLOW_UP';
+                  const isClosing = item.activityType === 'CLOSING';
+
+                  return (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        'p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs transition shadow-xs bg-white',
+                        isLunch
+                          ? 'border-amber-200 bg-amber-50/50 text-amber-900'
+                          : isDemo
+                          ? 'border-violet-200 bg-violet-50/30'
+                          : isFollowUp
+                          ? 'border-indigo-200 bg-indigo-50/30'
+                          : isClosing
+                          ? 'border-rose-200 bg-rose-50/30'
+                          : 'border-slate-200'
+                      )}
+                    >
+                      <div className="flex items-start sm:items-center gap-3 min-w-0">
+                        <div className="font-mono font-bold text-slate-700 shrink-0 w-36 text-[11px] bg-slate-100/80 px-2 py-1 rounded text-center border border-slate-200">
+                          {item.timeRange}
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="font-bold text-slate-900 flex items-center gap-2 flex-wrap">
+                            <span>{item.title}</span>
+                            {item.isProtected && (
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
+                                <ShieldCheck className="w-3 h-3" /> Protected
+                              </span>
+                            )}
+                            {item.priority === 'CRITICAL' || item.priority === 'HIGH' ? (
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-rose-100 text-rose-800">
+                                🔥 High Priority
+                              </span>
+                            ) : null}
+                          </div>
+                          {item.objective && (
+                            <p className="text-[11px] text-slate-500 mt-0.5 truncate">{item.objective}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action CTAs */}
+                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                        {isDemo && item.leadId && (
+                          <>
+                            <button
+                              onClick={() => setActiveBriefDemo({ id: item.id.replace('demo-', ''), leadId: item.leadId })}
+                              className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold border border-indigo-200 transition text-[11px]"
+                            >
+                              Before-Demo Brief
+                            </button>
+                            <Link
+                              href={`/leads/${item.leadId}`}
+                              className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-[11px] transition"
+                            >
+                              Open Lead
+                            </Link>
+                          </>
+                        )}
+
+                        {(isFollowUp || isClosing) && item.leadId && (
+                          <>
+                            {item.phone && (
+                              <a
+                                href={`tel:${item.phone}`}
+                                className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition flex items-center gap-1 shadow-xs"
+                              >
+                                <PhoneCall className="w-3 h-3" /> Call
+                              </a>
+                            )}
+                            <button
+                              onClick={() => setQuickWhatsAppTarget({ leadId: item.leadId, category: 'DAY_1_FOLLOWUP' })}
+                              className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition"
+                              title="Quick WhatsApp"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                            </button>
+                            <Link
+                              href={`/leads/${item.leadId}`}
+                              className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-[11px] transition"
+                            >
+                              Open
+                            </Link>
+                          </>
+                        )}
+
+                        {isLunch && (
+                          <span className="text-[11px] font-bold text-amber-700 flex items-center gap-1">
+                            <Coffee className="w-3.5 h-3.5" /> 1 Hour Protected Rest
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* TAB: NEXT WEEK PLAN */}
+      {activeTab === 'NEXT_WEEK' && (
+        <div className="space-y-4">
+          {plannerLoading ? (
+            <div className="space-y-3 animate-pulse">
+              <div className="h-20 w-full rounded-2xl bg-white border border-slate-200" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                  <div key={i} className="h-44 rounded-2xl bg-white border border-slate-200" />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Header Summary */}
+              <div className="p-4 sm:p-5 rounded-2xl border border-slate-200 bg-white shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                      Weekly Pipeline Forecast
+                    </span>
+                    <span className="text-xs font-bold text-slate-800">{nextWeekPlan?.weekRange || 'Next 7 Days'}</span>
+                  </div>
+                  <h2 className="text-base font-black text-slate-900 mt-1">
+                    {nextWeekPlan?.totalDemos || 0} Demos & {nextWeekPlan?.totalFollowUps || 0} Follow-ups Scheduled
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Plan your pipeline ahead to hit your weekly targets consistently.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Link
+                    href="/settings"
+                    className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-100 transition"
+                  >
+                    Adjust Weekly Target →
+                  </Link>
+                </div>
+              </div>
+
+              {/* Day-by-day Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {nextWeekPlan?.days?.map((day: any) => (
+                  <div
+                    key={day.dateString}
+                    className={cn(
+                      'rounded-2xl border bg-white p-4 space-y-3 shadow-xs flex flex-col justify-between',
+                      day.isWeeklyOff ? 'border-amber-200 bg-amber-50/30' : 'border-slate-200'
+                    )}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-sm text-slate-900">{day.displayDate?.split(',')[0]}</span>
+                          <span className="text-[11px] text-slate-500">{day.displayDate?.split(',')[1] || day.dateString}</span>
+                        </div>
+                        {day.isWeeklyOff ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
+                            Off
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                            {day.totalCommitments} committed
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Items list */}
+                      <div className="mt-2.5 space-y-2 text-xs">
+                        {day.isWeeklyOff ? (
+                          <p className="text-[11px] text-amber-700 italic py-2">Weekly Off / Rest Day</p>
+                        ) : !day.timeline || day.timeline.length === 0 ? (
+                          <p className="text-[11px] text-slate-400 italic py-2">No fixed demos or follow-ups yet. Open for outbound calling.</p>
+                        ) : (
+                          day.timeline.slice(0, 3).map((it: any) => (
+                            <div
+                              key={it.id}
+                              className={cn(
+                                'p-2 rounded-lg border text-[11px] flex items-center justify-between gap-2',
+                                it.activityType === 'DEMO'
+                                  ? 'bg-violet-50/60 border-violet-200 text-violet-950'
+                                  : it.activityType === 'FOLLOW_UP'
+                                  ? 'bg-indigo-50/60 border-indigo-200 text-indigo-950'
+                                  : 'bg-slate-50 border-slate-200 text-slate-800'
+                              )}
+                            >
+                              <div className="min-w-0">
+                                <span className="font-bold block truncate">
+                                  {it.activityType === 'DEMO' ? '🎥' : it.activityType === 'FOLLOW_UP' ? '💬' : '🍱'} {it.title}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-mono">{it.timeRange}</span>
+                              </div>
+                              {it.leadId && (
+                                <Link
+                                  href={`/leads/${it.leadId}`}
+                                  className="text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold shrink-0 underline"
+                                >
+                                  Open
+                                </Link>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {!day.isWeeklyOff && (
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                        <span>Demos: <strong className="text-violet-700 font-mono">{day.demosCount}</strong></span>
+                        <span>Follow-ups: <strong className="text-indigo-700 font-mono">{day.followUpsCount}</strong></span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}

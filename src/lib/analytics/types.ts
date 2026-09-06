@@ -4,6 +4,7 @@ export type AnalyticsDateRange =
   | 'THIS_WEEK'
   | 'LAST_WEEK'
   | 'THIS_MONTH'
+  | 'LAST_MONTH'
   | 'CUSTOM';
 
 export interface DateRangeBounds {
@@ -26,6 +27,59 @@ export interface ActivityCounts {
   notInterested: number;
   wrongNumber: number;
   other: number;
+}
+
+export interface CallingBreakdown {
+  totalCalls: number;
+  coldCalls: number;
+  inboundCalls: number;
+  followUpCalls: number;
+  interestedCalls: number;
+  closingCalls: number;
+  otherCalls: number;
+}
+
+export interface CallOutcomesBreakdown {
+  connected: number;
+  noAnswer: number;
+  busy: number;
+  switchedOff: number;
+  notInterested: number;
+  wrongNumber: number;
+  callbackRequested: number;
+  other: number;
+}
+
+export interface SalesProgressBreakdown {
+  interestedLeads: number;
+  demosBooked: number;
+  demosCompleted: number;
+  samplesSent: number;
+  followUpsCreated: number;
+  closings: number;
+  revenue: number;
+}
+
+export interface ActivitySummaryBreakdown {
+  newLeadsAdded: number;
+  whatsAppSent: number;
+  tasksCompleted: number;
+  demos: number;
+  otherActivities: number;
+  breakdownByType: Record<string, number>;
+}
+
+export interface SourcePerformanceItem {
+  source: string;
+  attempts: number;
+  connected: number;
+  interested: number;
+  demos: number;
+  closings: number;
+  revenue: number;
+  connectionRate: number;
+  interestRate: number;
+  closingRate: number;
 }
 
 export interface SalesMetrics {
@@ -169,6 +223,11 @@ export interface DailyReportData {
   reportDate: string;
   dayOfWeek: string;
   activity: ActivityCounts;
+  calling?: CallingBreakdown;
+  outcomes?: CallOutcomesBreakdown;
+  salesProgress?: SalesProgressBreakdown;
+  activitySummary?: ActivitySummaryBreakdown;
+  sources?: SourcePerformanceItem[];
   funnel: {
     callsToConnected: number;
     connectedToInterested: number;
@@ -188,11 +247,29 @@ export interface DailyReportData {
   generatedAt: string;
 }
 
+export interface WeeklyDayRow {
+  date: string;
+  dayName: string;
+  calls: number;
+  connected: number;
+  interested: number;
+  demos: number;
+  samples: number;
+  followUps: number;
+  closings: number;
+  revenue: number;
+}
+
 export interface WeeklyReportData {
   id?: string;
   weekStartDate: string;
   weekEndDate: string;
   activity: ActivityCounts;
+  calling?: CallingBreakdown;
+  outcomes?: CallOutcomesBreakdown;
+  salesProgress?: SalesProgressBreakdown;
+  activitySummary?: ActivitySummaryBreakdown;
+  dayByDay?: WeeklyDayRow[];
   conversions: {
     connectionRate: number;
     interestRate: number;
@@ -200,8 +277,9 @@ export interface WeeklyReportData {
     closeRate: number;
   };
   sales: SalesMetrics;
-  bestDay: { dayName: string; calls: number; sales: number; revenue: number } | null;
-  weakestDay: { dayName: string; calls: number } | null;
+  sources?: SourcePerformanceItem[];
+  bestDay: { dayName: string; date?: string; calls: number; sales: number; revenue: number } | null;
+  weakestDay: { dayName: string; date?: string; calls: number } | null;
   bestCallingTime: string | null;
   bestLeadSource: string | null;
   weakestFunnelStage: string | null;
@@ -213,6 +291,61 @@ export interface WeeklyReportData {
     nextWeekDirectives: string[];
   };
   hasEnoughData: boolean;
+  generatedAt: string;
+}
+
+export interface MonthlyReportData {
+  id?: string;
+  monthStartDate: string;
+  monthEndDate: string;
+  monthName: string;
+  year: number;
+  totalActivity: number;
+  activity: ActivityCounts;
+  calling: CallingBreakdown;
+  outcomes: CallOutcomesBreakdown;
+  salesProgress: SalesProgressBreakdown;
+  activitySummary: ActivitySummaryBreakdown;
+  dayByDay: WeeklyDayRow[];
+  conversionFunnel: {
+    calls: number;
+    connected: number;
+    interested: number;
+    demos: number;
+    closings: number;
+    connectionRate: number;
+    interestRate: number;
+    demoRate: number;
+    closeRate: number;
+    followUpConversionRate: number;
+  };
+  sourcePerformance: SourcePerformanceItem[];
+  sales: SalesMetrics;
+  revenue: number;
+  targetAchievement: {
+    targetRevenue: number;
+    achievedRevenue: number;
+    revenuePercent: number;
+    targetCalls: number;
+    achievedCalls: number;
+    callsPercent: number;
+    targetDemos: number;
+    achievedDemos: number;
+    demosPercent: number;
+    targetSales: number;
+    achievedSales: number;
+    salesPercent: number;
+  };
+  bestDay: { dayName: string; date: string; calls: number; sales: number; revenue: number } | null;
+  weakestDay: { dayName: string; date: string; calls: number; sales: number; revenue: number } | null;
+  closingRate: number;
+  demoConversionRate: number;
+  followUpConversionRate: number;
+  aiReview?: {
+    strategicWins: string[];
+    coreBottlenecks: string[];
+    directives: string[];
+  };
   generatedAt: string;
 }
 
@@ -229,4 +362,13 @@ export interface ForecastResult {
     dailyRunRate: number;
     pipelineWeightedValue: number;
   };
+}
+
+export interface AddActivityInput {
+  type: string;
+  title?: string;
+  description?: string;
+  leadId?: string | null;
+  metadata?: any;
+  occurredAt?: string | Date;
 }

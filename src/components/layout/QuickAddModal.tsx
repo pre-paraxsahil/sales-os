@@ -137,6 +137,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
   const [selectedLead, setSelectedLead] = useState<any | null>(null);
   const [selectedLeadForCall, setSelectedLeadForCall] = useState<any | null>(null);
   const [isLeadCreateOpen, setIsLeadCreateOpen] = useState(false);
+  const [isCallLoggerOpen, setIsCallLoggerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
@@ -323,6 +324,8 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
                     onClick={() => {
                       if (action.id === 'new-lead') {
                         setIsLeadCreateOpen(true);
+                      } else if (action.id === 'log-call') {
+                        setIsCallLoggerOpen(true);
                       } else {
                         setSelectedAction(action.id);
                       }
@@ -1423,6 +1426,21 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
           onClose();
         }}
       />
+
+      {/* Real Quick Call Logger Modal when opened directly */}
+      {isCallLoggerOpen && (
+        <QuickCallLoggerModal
+          isOpen={isCallLoggerOpen}
+          onClose={() => {
+            setIsCallLoggerOpen(false);
+            onClose();
+          }}
+          onSuccess={() => {
+            setIsCallLoggerOpen(false);
+            onClose();
+          }}
+        />
+      )}
 
       {/* Real Quick Call Logger Modal when opened with pre-selected lead */}
       {selectedLeadForCall && (

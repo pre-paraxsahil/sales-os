@@ -1,8 +1,20 @@
 import { prisma } from '@/lib/prisma';
 import {
+  getDateRangeBounds as getEngineBounds,
+  getLocalTimeParts,
+  DEFAULT_TIMEZONE,
+} from '@/lib/time/salesTimeEngine';
+import {
   AnalyticsDateRange,
   DateRangeBounds,
   ActivityCounts,
+  CallingBreakdown,
+  CallOutcomesBreakdown,
+  SalesProgressBreakdown,
+  ActivitySummaryBreakdown,
+  SourcePerformanceItem,
+  WeeklyDayRow,
+  MonthlyReportData,
   SalesMetrics,
   PipelineHealth,
   FunnelAnalyticsResult,
@@ -18,65 +30,14 @@ import {
 } from './types';
 
 /**
- * Returns Start & End boundaries for a given date range filter
+ * Returns Start & End boundaries for a given date range filter using unified Sales Time Engine
  */
 export function getDateRangeBounds(
   range: AnalyticsDateRange,
   customStart?: string,
   customEnd?: string
 ): DateRangeBounds {
-  const now = new Date();
-
-  switch (range) {
-    case 'TODAY': {
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-      return { start, end, label: 'Today' };
-    }
-    case 'YESTERDAY': {
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const start = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 0, 0, 0, 0);
-      const end = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59, 999);
-      return { start, end, label: 'Yesterday' };
-    }
-    case 'THIS_WEEK': {
-      // Start of week (Monday)
-      const day = now.getDay();
-      const diff = (day === 0 ? -6 : 1) - day; // adjust when day is sunday
-      const monday = new Date(now);
-      monday.setDate(now.getDate() + diff);
-      const start = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate(), 0, 0, 0, 0);
-      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-      return { start, end, label: 'This Week' };
-    }
-    case 'LAST_WEEK': {
-      const day = now.getDay();
-      const diff = (day === 0 ? -6 : 1) - day;
-      const lastMonday = new Date(now);
-      lastMonday.setDate(now.getDate() + diff - 7);
-      const lastSunday = new Date(lastMonday);
-      lastSunday.setDate(lastMonday.getDate() + 6);
-      const start = new Date(lastMonday.getFullYear(), lastMonday.getMonth(), lastMonday.getDate(), 0, 0, 0, 0);
-      const end = new Date(lastSunday.getFullYear(), lastSunday.getMonth(), lastSunday.getDate(), 23, 59, 59, 999);
-      return { start, end, label: 'Last Week' };
-    }
-    case 'THIS_MONTH': {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-      return { start, end, label: 'This Month' };
-    }
-    case 'CUSTOM': {
-      const start = customStart ? new Date(customStart) : new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-      const end = customEnd ? new Date(customEnd) : new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-      return { start, end, label: 'Custom Range' };
-    }
-    default: {
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-      return { start, end, label: 'Today' };
-    }
-  }
+  return getEngineBounds(range, customStart, customEnd, DEFAULT_TIMEZONE);
 }
 
 /**
@@ -174,6 +135,7 @@ export async function getActivityCounts(
         wrongNumber++;
         break;
       case 'FOLLOW_UP_REQUIRED':
+      case 'CALLBACK_REQUESTED':
         connected++;
         break;
       default:
@@ -465,27 +427,26 @@ export async function getTwoHourPulse(
 ): Promise<TwoHourPulseResult> {
   const userFilter = userId ? { userId } : {};
 
-  // Current hour
-  const currentHour = referenceDate.getHours();
+  // Current hour in Asia/Kolkata
+  const parts = getLocalTimeParts(referenceDate, DEFAULT_TIMEZONE);
+  const currentHour = parts.hour;
   // Group into 2-hour blocks: 8-10, 10-12, 12-14, 14-16, 16-18, 18-20, etc.
   const blockStartHour = Math.floor(currentHour / 2) * 2;
   const blockEndHour = blockStartHour + 2;
 
-  const currentStart = new Date(referenceDate);
-  currentStart.setHours(blockStartHour, 0, 0, 0);
+  const currentStartIso = `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}T${String(blockStartHour).padStart(2, '0')}:00:00.000+05:30`;
+  const currentEndIso = `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}T${String(blockEndHour - 1).padStart(2, '0')}:59:59.999+05:30`;
 
-  const currentEnd = new Date(referenceDate);
-  currentEnd.setHours(blockEndHour - 1, 59, 59, 999);
+  const currentStart = new Date(currentStartIso);
+  const currentEnd = new Date(currentEndIso);
 
-  const prevStart = new Date(currentStart);
-  prevStart.setHours(currentStart.getHours() - 2);
-
-  const prevEnd = new Date(currentStart);
-  prevEnd.setMilliseconds(-1);
+  const prevStart = new Date(currentStart.getTime() - 2 * 60 * 60 * 1000);
+  const prevEnd = new Date(currentStart.getTime() - 1);
 
   const formatHour = (h: number) => {
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const displayH = h % 12 === 0 ? 12 : h % 12;
+    const norm = (h + 24) % 24;
+    const ampm = norm >= 12 ? 'PM' : 'AM';
+    const displayH = norm % 12 === 0 ? 12 : norm % 12;
     return `${displayH}:00 ${ampm}`;
   };
 
@@ -1105,4 +1066,510 @@ export async function getSalesOverview(
     pendingHotOpportunities,
     forecast,
   };
+}
+
+/**
+ * Phase 3: Detailed Calling Breakdown by Source/Type
+ */
+export async function getDetailedCallingBreakdown(
+  bounds: DateRangeBounds,
+  userId?: string
+): Promise<CallingBreakdown> {
+  const userFilter = userId ? { userId } : {};
+
+  const calls = await prisma.call.findMany({
+    where: {
+      ...userFilter,
+      occurredAt: {
+        gte: bounds.start,
+        lte: bounds.end,
+      },
+    },
+    select: {
+      callType: true,
+    },
+  });
+
+  let coldCalls = 0;
+  let inboundCalls = 0;
+  let followUpCalls = 0;
+  let interestedCalls = 0;
+  let closingCalls = 0;
+  let otherCalls = 0;
+
+  for (const c of calls) {
+    switch (c.callType) {
+      case 'COLD_CALL':
+        coldCalls++;
+        break;
+      case 'INBOUND':
+      case 'NEW_ENQUIRY':
+        inboundCalls++;
+        break;
+      case 'FOLLOW_UP':
+      case 'CALLBACK':
+        followUpCalls++;
+        break;
+      case 'INTERESTED_LEAD':
+      case 'HOT_LEAD':
+        interestedCalls++;
+        break;
+      case 'CLOSING_CALL':
+      case 'DISCOVERY':
+        closingCalls++;
+        break;
+      case 'OUTBOUND':
+      default:
+        otherCalls++;
+        break;
+    }
+  }
+
+  return {
+    totalCalls: calls.length,
+    coldCalls,
+    inboundCalls,
+    followUpCalls,
+    interestedCalls,
+    closingCalls,
+    otherCalls,
+  };
+}
+
+/**
+ * Phase 3: Detailed Call Outcomes Breakdown
+ */
+export async function getDetailedCallOutcomes(
+  bounds: DateRangeBounds,
+  userId?: string
+): Promise<CallOutcomesBreakdown> {
+  const userFilter = userId ? { userId } : {};
+
+  const calls = await prisma.call.findMany({
+    where: {
+      ...userFilter,
+      occurredAt: {
+        gte: bounds.start,
+        lte: bounds.end,
+      },
+    },
+    select: {
+      outcome: true,
+    },
+  });
+
+  let connected = 0;
+  let noAnswer = 0;
+  let busy = 0;
+  let switchedOff = 0;
+  let notInterested = 0;
+  let wrongNumber = 0;
+  let callbackRequested = 0;
+  let other = 0;
+
+  for (const c of calls) {
+    switch (c.outcome) {
+      case 'CONNECTED':
+      case 'INTERESTED':
+      case 'DEMO_BOOKED':
+      case 'SCHEDULED_DEMO':
+        connected++;
+        break;
+      case 'NO_ANSWER':
+      case 'VOICEMAIL':
+        noAnswer++;
+        break;
+      case 'BUSY':
+        busy++;
+        break;
+      case 'SWITCHED_OFF':
+        switchedOff++;
+        break;
+      case 'NOT_INTERESTED':
+        notInterested++;
+        break;
+      case 'WRONG_NUMBER':
+        wrongNumber++;
+        break;
+      case 'CALLBACK_REQUESTED':
+      case 'FOLLOW_UP_REQUIRED':
+        callbackRequested++;
+        connected++;
+        break;
+      default:
+        other++;
+        break;
+    }
+  }
+
+  return {
+    connected,
+    noAnswer,
+    busy,
+    switchedOff,
+    notInterested,
+    wrongNumber,
+    callbackRequested,
+    other,
+  };
+}
+
+/**
+ * Phase 3: Detailed Sales Progress Breakdown
+ */
+export async function getDetailedSalesProgress(
+  bounds: DateRangeBounds,
+  userId?: string
+): Promise<SalesProgressBreakdown> {
+  const userFilter = userId ? { userId } : {};
+
+  const [interestedCallsCount, demosBooked, demosCompleted, samplesSent, followUpsCreated, sales] = await Promise.all([
+    prisma.call.count({
+      where: {
+        ...userFilter,
+        outcome: { in: ['INTERESTED', 'DEMO_BOOKED', 'SCHEDULED_DEMO'] },
+        occurredAt: { gte: bounds.start, lte: bounds.end },
+      },
+    }),
+    prisma.demo.count({
+      where: {
+        ...userFilter,
+        scheduledAt: { gte: bounds.start, lte: bounds.end },
+      },
+    }),
+    prisma.demo.count({
+      where: {
+        ...userFilter,
+        status: 'COMPLETED',
+        updatedAt: { gte: bounds.start, lte: bounds.end },
+      },
+    }),
+    prisma.activity.count({
+      where: {
+        ...userFilter,
+        type: 'SAMPLE_SENT',
+        occurredAt: { gte: bounds.start, lte: bounds.end },
+      },
+    }),
+    prisma.followUp.count({
+      where: {
+        ...userFilter,
+        createdAt: { gte: bounds.start, lte: bounds.end },
+      },
+    }),
+    prisma.sale.findMany({
+      where: {
+        ...userFilter,
+        status: 'COMPLETED',
+        closedAt: { gte: bounds.start, lte: bounds.end },
+      },
+      select: { amount: true },
+    }),
+  ]);
+
+  const closings = sales.length;
+  const revenue = sales.reduce((acc, s) => acc + Number(s.amount), 0);
+
+  return {
+    interestedLeads: interestedCallsCount,
+    demosBooked,
+    demosCompleted,
+    samplesSent,
+    followUpsCreated,
+    closings,
+    revenue,
+  };
+}
+
+/**
+ * Phase 3: Detailed Activity Summary Breakdown
+ */
+export async function getDetailedActivitySummary(
+  bounds: DateRangeBounds,
+  userId?: string
+): Promise<ActivitySummaryBreakdown> {
+  const userFilter = userId ? { userId } : {};
+
+  const [newLeadsAdded, whatsAppSent, tasksCompleted, demos, activities] = await Promise.all([
+    prisma.lead.count({
+      where: {
+        ...userFilter,
+        createdAt: { gte: bounds.start, lte: bounds.end },
+      },
+    }),
+    prisma.whatsAppMessage.count({
+      where: {
+        direction: 'OUTBOUND',
+        sentAt: { gte: bounds.start, lte: bounds.end },
+      },
+    }),
+    prisma.task.count({
+      where: {
+        ...userFilter,
+        status: 'COMPLETED',
+        completedAt: { gte: bounds.start, lte: bounds.end },
+      },
+    }),
+    prisma.demo.count({
+      where: {
+        ...userFilter,
+        OR: [
+          { scheduledAt: { gte: bounds.start, lte: bounds.end } },
+          { completedAt: { gte: bounds.start, lte: bounds.end } },
+        ],
+      },
+    }),
+    prisma.activity.findMany({
+      where: {
+        ...userFilter,
+        occurredAt: { gte: bounds.start, lte: bounds.end },
+      },
+      select: { type: true },
+    }),
+  ]);
+
+  const breakdownByType: Record<string, number> = {};
+  let otherActivities = 0;
+
+  for (const act of activities) {
+    breakdownByType[act.type] = (breakdownByType[act.type] || 0) + 1;
+    if (
+      [
+        'MEETING',
+        'SAMPLE_SENT',
+        'PROPOSAL_SENT',
+        'EMAIL_SENT',
+        'RESEARCH',
+        'CLIENT_VISIT',
+        'NEGOTIATION',
+        'OTHER_ACTIVITY',
+        'NOTE_ADDED',
+      ].includes(act.type)
+    ) {
+      otherActivities++;
+    }
+  }
+
+  return {
+    newLeadsAdded,
+    whatsAppSent,
+    tasksCompleted,
+    demos,
+    otherActivities,
+    breakdownByType,
+  };
+}
+
+/**
+ * Phase 3: Real Source Performance Breakdown
+ */
+export async function getSourcePerformanceBreakdown(
+  bounds: DateRangeBounds,
+  userId?: string
+): Promise<SourcePerformanceItem[]> {
+  const userFilter = userId ? { userId } : {};
+
+  const calls = await prisma.call.findMany({
+    where: {
+      ...userFilter,
+      occurredAt: { gte: bounds.start, lte: bounds.end },
+    },
+    include: {
+      lead: { select: { source: true } },
+    },
+  });
+
+  const sales = await prisma.sale.findMany({
+    where: {
+      ...userFilter,
+      status: 'COMPLETED',
+      closedAt: { gte: bounds.start, lte: bounds.end },
+    },
+    include: {
+      lead: { select: { source: true } },
+    },
+  });
+
+  const demos = await prisma.demo.findMany({
+    where: {
+      ...userFilter,
+      scheduledAt: { gte: bounds.start, lte: bounds.end },
+    },
+    include: {
+      lead: { select: { source: true } },
+    },
+  });
+
+  const sourceMap = new Map<string, {
+    attempts: number;
+    connected: number;
+    interested: number;
+    demos: number;
+    closings: number;
+    revenue: number;
+  }>();
+
+  const getCleanSource = (sourceName?: string | null, callType?: string) => {
+    if (callType === 'COLD_CALL') return 'Cold Calls';
+    if (!sourceName || sourceName.trim() === '') return 'Direct / Unassigned';
+    const s = sourceName.trim().toLowerCase();
+    if (s.includes('cold')) return 'Cold Calls';
+    if (s.includes('ad') || s.includes('meta') || s.includes('facebook') || s.includes('google') || s.includes('insta')) return 'Ads / Inbound';
+    if (s.includes('referral') || s.includes('partner')) return 'Referrals';
+    if (s.includes('website') || s.includes('web')) return 'Website';
+    if (s.includes('whatsapp')) return 'WhatsApp Inbound';
+    return sourceName.trim();
+  };
+
+  for (const c of calls) {
+    const src = getCleanSource(c.lead?.source, c.callType);
+    const existing = sourceMap.get(src) || { attempts: 0, connected: 0, interested: 0, demos: 0, closings: 0, revenue: 0 };
+    existing.attempts++;
+
+    const isConnected = ['CONNECTED', 'INTERESTED', 'DEMO_BOOKED', 'SCHEDULED_DEMO', 'FOLLOW_UP_REQUIRED', 'CALLBACK_REQUESTED'].includes(c.outcome);
+    if (isConnected) existing.connected++;
+
+    const isInterested = ['INTERESTED', 'DEMO_BOOKED', 'SCHEDULED_DEMO'].includes(c.outcome);
+    if (isInterested) existing.interested++;
+
+    sourceMap.set(src, existing);
+  }
+
+  for (const d of demos) {
+    const src = getCleanSource(d.lead?.source);
+    const existing = sourceMap.get(src) || { attempts: 0, connected: 0, interested: 0, demos: 0, closings: 0, revenue: 0 };
+    existing.demos++;
+    sourceMap.set(src, existing);
+  }
+
+  for (const s of sales) {
+    const src = getCleanSource(s.lead?.source);
+    const existing = sourceMap.get(src) || { attempts: 0, connected: 0, interested: 0, demos: 0, closings: 0, revenue: 0 };
+    existing.closings++;
+    existing.revenue += Number(s.amount);
+    sourceMap.set(src, existing);
+  }
+
+  if (sourceMap.size === 0) {
+    sourceMap.set('Cold Calls', { attempts: 0, connected: 0, interested: 0, demos: 0, closings: 0, revenue: 0 });
+    sourceMap.set('Ads / Inbound', { attempts: 0, connected: 0, interested: 0, demos: 0, closings: 0, revenue: 0 });
+  }
+
+  const result: SourcePerformanceItem[] = [];
+  for (const [source, data] of sourceMap.entries()) {
+    const connectionRate = data.attempts > 0 ? Math.round((data.connected / data.attempts) * 100) : 0;
+    const interestRate = data.connected > 0 ? Math.round((data.interested / data.connected) * 100) : 0;
+    const closingRate = data.demos > 0 ? Math.round((data.closings / data.demos) * 100) : (data.attempts > 0 ? Math.round((data.closings / data.attempts) * 100) : 0);
+
+    result.push({
+      source,
+      attempts: data.attempts,
+      connected: data.connected,
+      interested: data.interested,
+      demos: data.demos,
+      closings: data.closings,
+      revenue: data.revenue,
+      connectionRate,
+      interestRate,
+      closingRate,
+    });
+  }
+
+  return result.sort((a, b) => b.attempts - a.attempts || b.revenue - a.revenue);
+}
+
+/**
+ * Phase 3: Day-by-Day Breakdown Matrix across Date Range
+ */
+export async function getDayByDayBreakdown(
+  bounds: DateRangeBounds,
+  userId?: string
+): Promise<WeeklyDayRow[]> {
+  const userFilter = userId ? { userId } : {};
+
+  const [calls, demos, samples, followUps, sales] = await Promise.all([
+    prisma.call.findMany({
+      where: {
+        ...userFilter,
+        occurredAt: { gte: bounds.start, lte: bounds.end },
+      },
+      select: { occurredAt: true, outcome: true },
+    }),
+    prisma.demo.findMany({
+      where: {
+        ...userFilter,
+        scheduledAt: { gte: bounds.start, lte: bounds.end },
+      },
+      select: { scheduledAt: true },
+    }),
+    prisma.activity.findMany({
+      where: {
+        ...userFilter,
+        type: 'SAMPLE_SENT',
+        occurredAt: { gte: bounds.start, lte: bounds.end },
+      },
+      select: { occurredAt: true },
+    }),
+    prisma.followUp.findMany({
+      where: {
+        ...userFilter,
+        createdAt: { gte: bounds.start, lte: bounds.end },
+      },
+      select: { createdAt: true },
+    }),
+    prisma.sale.findMany({
+      where: {
+        ...userFilter,
+        status: 'COMPLETED',
+        closedAt: { gte: bounds.start, lte: bounds.end },
+      },
+      select: { closedAt: true, amount: true },
+    }),
+  ]);
+
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const rows: WeeklyDayRow[] = [];
+
+  const current = new Date(bounds.start);
+  while (current <= bounds.end) {
+    const parts = getLocalTimeParts(current);
+    const dateStr = parts.formattedDate;
+    const dayName = parts.dayName;
+
+    const startOfDay = new Date(current);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(current);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const dayCalls = calls.filter((c) => c.occurredAt && c.occurredAt >= startOfDay && c.occurredAt <= endOfDay);
+    const dayConnected = dayCalls.filter((c) =>
+      ['CONNECTED', 'INTERESTED', 'DEMO_BOOKED', 'SCHEDULED_DEMO', 'FOLLOW_UP_REQUIRED', 'CALLBACK_REQUESTED'].includes(c.outcome)
+    ).length;
+    const dayInterested = dayCalls.filter((c) =>
+      ['INTERESTED', 'DEMO_BOOKED', 'SCHEDULED_DEMO'].includes(c.outcome)
+    ).length;
+    const dayDemos = demos.filter((d) => d.scheduledAt >= startOfDay && d.scheduledAt <= endOfDay).length;
+    const daySamples = samples.filter((s) => s.occurredAt && s.occurredAt >= startOfDay && s.occurredAt <= endOfDay).length;
+    const dayFollowUps = followUps.filter((f) => f.createdAt >= startOfDay && f.createdAt <= endOfDay).length;
+    const daySales = sales.filter((s) => s.closedAt && s.closedAt >= startOfDay && s.closedAt <= endOfDay);
+    const dayClosings = daySales.length;
+    const dayRevenue = daySales.reduce((acc, s) => acc + Number(s.amount), 0);
+
+    rows.push({
+      date: dateStr,
+      dayName,
+      calls: dayCalls.length,
+      connected: dayConnected,
+      interested: dayInterested,
+      demos: dayDemos,
+      samples: daySamples,
+      followUps: dayFollowUps,
+      closings: dayClosings,
+      revenue: dayRevenue,
+    });
+
+    current.setDate(current.getDate() + 1);
+  }
+
+  return rows;
 }

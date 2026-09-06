@@ -22,6 +22,9 @@ import {
   DollarSign,
   ChevronRight,
   CheckCircle2,
+  MapPin,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BeforeCallBriefModal } from '@/components/calls/BeforeCallBriefModal';
@@ -33,6 +36,7 @@ import { TellMeEverythingDrawer } from '@/components/leads/TellMeEverythingDrawe
 import { DemoListAndCockpit } from '@/components/demos/DemoListAndCockpit';
 import { LeadWhatsAppTab } from '@/components/whatsapp/LeadWhatsAppTab';
 import { QuickWhatsAppModal } from '@/components/whatsapp/QuickWhatsAppModal';
+import { OneComProBrainModal } from '@/components/knowledge/OneComProBrainModal';
 
 interface LeadProfileClientProps {
   id: string;
@@ -50,6 +54,7 @@ export const LeadProfileClient: React.FC<LeadProfileClientProps> = ({ id }) => {
 
   // Intelligence & Dossier Drawer
   const [isTellMeEverythingOpen, setIsTellMeEverythingOpen] = useState(false);
+  const [isSalesBrainOpen, setIsSalesBrainOpen] = useState(false);
 
   // Call Modals
   const [isBriefOpen, setIsBriefOpen] = useState(false);
@@ -62,6 +67,10 @@ export const LeadProfileClient: React.FC<LeadProfileClientProps> = ({ id }) => {
     'whatsapp' | 'demo' | 'followup' | 'task' | 'note' | 'edit' | null
   >(null);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Delete / Archive Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeletingLead, setIsDeletingLead] = useState(false);
 
   // Action Form Inputs
   const [demoDate, setDemoDate] = useState('');
@@ -120,6 +129,27 @@ export const LeadProfileClient: React.FC<LeadProfileClientProps> = ({ id }) => {
       }
     } catch (err) {
       alert('Network error updating status.');
+    }
+  };
+
+  const handleDeleteLead = async () => {
+    setIsDeletingLead(true);
+    try {
+      const res = await fetch(`/api/leads/${id}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setIsDeleteModalOpen(false);
+        router.push('/leads');
+      } else {
+        alert(json.error || 'Failed to archive lead.');
+      }
+    } catch (err) {
+      console.error('Error deleting lead:', err);
+      alert('Network error deleting lead.');
+    } finally {
+      setIsDeletingLead(false);
     }
   };
 
@@ -256,6 +286,14 @@ export const LeadProfileClient: React.FC<LeadProfileClientProps> = ({ id }) => {
           <span className="rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
             Stage: {lead.status}
           </span>
+          <button
+            type="button"
+            onClick={() => setIsDeleteModalOpen(true)}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 transition"
+            title="Archive / Delete Lead"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
 
@@ -288,6 +326,12 @@ export const LeadProfileClient: React.FC<LeadProfileClientProps> = ({ id }) => {
                     {lead.contact.phone}
                   </span>
                 )}
+                {lead.business?.city && (
+                  <span className="font-medium text-slate-600 flex items-center gap-1">
+                    <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                    {lead.business.city}
+                  </span>
+                )}
                 <span>Source: {lead.source || 'Outreach'}</span>
               </p>
             </div>
@@ -309,6 +353,15 @@ export const LeadProfileClient: React.FC<LeadProfileClientProps> = ({ id }) => {
             >
               <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
               <span>TELL ME EVERYTHING</span>
+            </button>
+
+            <button
+              onClick={() => setIsSalesBrainOpen(true)}
+              className="flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-3.5 py-2 text-xs font-bold text-purple-800 hover:bg-purple-100 active:scale-95 transition shadow-xs"
+              title="OneComPro Product Advisor & Objection Battlecards"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-purple-600" />
+              <span>Product Advisor</span>
             </button>
 
             <button
@@ -585,6 +638,57 @@ export const LeadProfileClient: React.FC<LeadProfileClientProps> = ({ id }) => {
           </div>
         </div>
       )}
+
+      {/* Delete / Archive Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="relative w-full max-w-md rounded-2xl border border-rose-200 bg-white p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600 border border-rose-200">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Archive / Delete Lead</h3>
+                <p className="text-xs text-slate-500">Soft delete with full history preservation</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-700 leading-relaxed">
+              Are you sure you want to archive <strong>{lead.title}</strong>?
+              <br />
+              <span className="text-slate-500 text-[11px] block mt-1">
+                All associated calls, customer memory, and sales audit history will remain safely preserved in reports.
+              </span>
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingLead}
+                onClick={handleDeleteLead}
+                className="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-500 disabled:opacity-50"
+              >
+                {isDeletingLead ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                <span>Confirm Archive</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* OneComPro AI Sales Brain Modal */}
+      <OneComProBrainModal
+        isOpen={isSalesBrainOpen}
+        onClose={() => setIsSalesBrainOpen(false)}
+        initialIndustry={lead.business?.industry || ''}
+      />
     </div>
   );
 };

@@ -149,6 +149,9 @@ export async function executePostCallWorkflow(
           },
         });
 
+        // Calculate reminder trigger (5 minutes prior to action time)
+        const reminderTime = new Date(Math.max(Date.now(), parsedNextActionAt.getTime() - 5 * 60000));
+
         // Create Reminder for Demo
         await tx.reminder.create({
           data: {
@@ -160,7 +163,7 @@ export async function executePostCallWorkflow(
             type: 'DEMO',
             entityId: createdDemo.id,
             entityType: 'DEMO',
-            remindAt: parsedNextActionAt,
+            remindAt: reminderTime,
           },
         });
       } else {
@@ -206,6 +209,9 @@ export async function executePostCallWorkflow(
           },
         });
 
+        // Calculate reminder trigger (5 minutes prior to action time)
+        const reminderTime = new Date(Math.max(Date.now(), parsedNextActionAt.getTime() - 5 * 60000));
+
         // Create Reminder for Follow-up
         await tx.reminder.create({
           data: {
@@ -217,7 +223,7 @@ export async function executePostCallWorkflow(
             type: 'FOLLOW_UP',
             entityId: followUp.id,
             entityType: 'FOLLOW_UP',
-            remindAt: parsedNextActionAt,
+            remindAt: reminderTime,
           },
         });
       }

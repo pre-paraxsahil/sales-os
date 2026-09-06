@@ -126,7 +126,7 @@ export async function POST(
       {
         success: true,
         data: result,
-        message: 'Call saved and lead workflow updated successfully.',
+        message: 'Call saved ✓',
       },
       { status: 201 }
     );
@@ -136,7 +136,7 @@ export async function POST(
     return NextResponse.json(
       {
         success: false,
-        error: isNotFound ? error.message : 'Failed to save call.',
+        error: isNotFound ? error.message : 'Could not save call',
         details: error?.message,
       },
       { status: isNotFound ? 404 : 500 }

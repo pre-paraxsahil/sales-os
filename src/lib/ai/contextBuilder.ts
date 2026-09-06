@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { getPlanAwareKnowledge } from '@/lib/knowledge/productKnowledgeService';
 import { CallAnalysisContext, DemoPlanContext, BeforeDemoBrief } from './types';
 
 /**
@@ -63,57 +64,15 @@ export async function buildCallAnalysisContext(
     },
   });
 
-  // 5. Query active Product Knowledge from PostgreSQL tables
-  let plans = await prisma.plan.findMany({
-    where: {
-      availability: 'AVAILABLE',
-      isPublic: true,
-    },
-    include: {
-      prices: {
-        orderBy: { validFrom: 'desc' },
-        take: 1,
-      },
-      features: {
-        include: {
-          feature: true,
-        },
-        take: 6,
-      },
-    },
-    take: 5,
-  });
-
-  // If plans table is not yet seeded, seed OneComPro plans from verified product sheet
-  if (plans.length === 0) {
-    try {
-      await ensureProductKnowledgeSeeded();
-      plans = await prisma.plan.findMany({
-        where: { availability: 'AVAILABLE' },
-        include: {
-          prices: { take: 1 },
-          features: { include: { feature: true }, take: 6 },
-        },
-      });
-    } catch (err) {
-      console.warn('Could not auto-seed product knowledge:', err);
-    }
-  }
-
-  const productKnowledgeFormatted = plans.map((p) => {
-    const latestPrice = p.prices[0];
-    const priceFormatted = latestPrice
-      ? `${latestPrice.currency} ${Number(latestPrice.price).toLocaleString('en-IN')}`
-      : 'Pricing on request';
-
-    return {
-      planName: p.name,
-      planCode: p.code,
-      priceFormatted,
-      billingCycle: latestPrice?.billingCycle || 'MONTHLY',
-      features: p.features.map((f) => f.feature.name),
-    };
-  });
+  // 5. Product knowledge from PostgreSQL
+  const plans = await getPlanAwareKnowledge();
+  const productKnowledgeFormatted = plans.map((p) => ({
+    planName: p.name,
+    planCode: p.code,
+    priceFormatted: p.monthlyPriceFormatted,
+    billingCycle: 'MONTHLY',
+    features: p.features,
+  }));
 
   return {
     lead: {
@@ -163,120 +122,6 @@ export async function buildCallAnalysisContext(
     })),
     productKnowledge: productKnowledgeFormatted,
   };
-}
-
-/**
- * Ensures baseline OneComPro product knowledge is present in PostgreSQL
- * if the database was not previously populated.
- */
-async function ensureProductKnowledgeSeeded() {
-  const existingOffering = await prisma.productOffering.findFirst({
-    where: { code: 'ONECOMPRO' },
-  });
-
-  if (existingOffering) return;
-
-  const offering = await prisma.productOffering.create({
-    data: {
-      name: 'OneComPro Commerce & Sales Platform',
-      code: 'ONECOMPRO',
-      description: 'Unified multi-channel commerce and sales operations platform for growing businesses.',
-      availability: 'AVAILABLE',
-      plans: {
-        create: [
-          {
-            name: 'Starter Plan',
-            code: 'STARTER',
-            description: 'Essential sales and single-store operations.',
-            isPublic: true,
-            availability: 'AVAILABLE',
-            prices: {
-              create: {
-                price: 2999,
-                currency: 'INR',
-                billingCycle: 'MONTHLY',
-              },
-            },
-          },
-          {
-            name: 'Growth Plan',
-            code: 'GROWTH',
-            description: 'Multi-store inventory sync, advanced CRM, and automated WhatsApp workflows.',
-            isPublic: true,
-            availability: 'AVAILABLE',
-            prices: {
-              create: {
-                price: 7999,
-                currency: 'INR',
-                billingCycle: 'MONTHLY',
-              },
-            },
-          },
-          {
-            name: 'Enterprise Plan',
-            code: 'ENTERPRISE',
-            description: 'Custom integrations, dedicated SLA, unlimited stores, and AI sales intelligence.',
-            isPublic: true,
-            availability: 'AVAILABLE',
-            prices: {
-              create: {
-                price: 19999,
-                currency: 'INR',
-                billingCycle: 'MONTHLY',
-              },
-            },
-          },
-        ],
-      },
-    },
-    include: {
-      plans: true,
-    },
-  });
-
-  // Seed core features
-  const f1 = await prisma.feature.upsert({
-    where: { code: 'MULTI_STORE_SYNC' },
-    update: {},
-    create: {
-      name: 'Multi-store Inventory Sync',
-      code: 'MULTI_STORE_SYNC',
-      description: 'Real-time inventory synchronization across Shopify, Amazon, and offline outlets.',
-    },
-  });
-
-  const f2 = await prisma.feature.upsert({
-    where: { code: 'WHATSAPP_WORKFLOWS' },
-    update: {},
-    create: {
-      name: 'WhatsApp Automation & Alerts',
-      code: 'WHATSAPP_WORKFLOWS',
-      description: 'Automated order confirmations, payment reminders, and cart recovery.',
-    },
-  });
-
-  const f3 = await prisma.feature.upsert({
-    where: { code: 'SALES_OS_CRM' },
-    update: {},
-    create: {
-      name: 'Dedicated Sales CRM',
-      code: 'SALES_OS_CRM',
-      description: 'Single-user call logs, customer memory, and follow-up tracking.',
-    },
-  });
-
-  // Connect features to Growth & Enterprise plans
-  const growthPlan = offering.plans.find((p) => p.code === 'GROWTH');
-  if (growthPlan) {
-    await prisma.planFeature.createMany({
-      data: [
-        { planId: growthPlan.id, featureId: f1.id, isIncluded: true },
-        { planId: growthPlan.id, featureId: f2.id, isIncluded: true },
-        { planId: growthPlan.id, featureId: f3.id, isIncluded: true },
-      ],
-      skipDuplicates: true,
-    });
-  }
 }
 
 /**
@@ -346,39 +191,14 @@ export async function buildDemoPlanContext(
     .filter(Boolean) as string[];
 
   // 4. Product knowledge from PostgreSQL
-  let plans = await prisma.plan.findMany({
-    where: { availability: 'AVAILABLE', isPublic: true },
-    include: {
-      prices: { take: 1, orderBy: { validFrom: 'desc' } },
-      features: { include: { feature: true }, take: 8 },
-    },
-  });
-
-  if (plans.length === 0) {
-    await ensureProductKnowledgeSeeded();
-    plans = await prisma.plan.findMany({
-      where: { availability: 'AVAILABLE' },
-      include: {
-        prices: { take: 1 },
-        features: { include: { feature: true }, take: 8 },
-      },
-    });
-  }
-
-  const productKnowledgeFormatted = plans.map((p) => {
-    const latestPrice = p.prices[0];
-    const priceFormatted = latestPrice
-      ? `${latestPrice.currency} ${Number(latestPrice.price).toLocaleString('en-IN')}`
-      : 'Pricing on request';
-
-    return {
-      planName: p.name,
-      planCode: p.code,
-      priceFormatted,
-      billingCycle: latestPrice?.billingCycle || 'MONTHLY',
-      features: p.features.map((f) => f.feature.name),
-    };
-  });
+  const plans = await getPlanAwareKnowledge();
+  const productKnowledgeFormatted = plans.map((p) => ({
+    planName: p.name,
+    planCode: p.code,
+    priceFormatted: p.monthlyPriceFormatted,
+    billingCycle: 'MONTHLY',
+    features: p.features,
+  }));
 
   return {
     lead: {
@@ -682,45 +502,14 @@ export async function buildWhatsAppContext(
   }
 
   // 7. Product Knowledge
-  let plans = await prisma.plan.findMany({
-    where: { availability: 'AVAILABLE', isPublic: true },
-    include: {
-      prices: { orderBy: { validFrom: 'desc' }, take: 1 },
-      features: { include: { feature: true }, take: 5 },
-    },
-    take: 3,
-  });
-
-  if (plans.length === 0) {
-    try {
-      await ensureProductKnowledgeSeeded();
-      plans = await prisma.plan.findMany({
-        where: { availability: 'AVAILABLE' },
-        include: {
-          prices: { take: 1 },
-          features: { include: { feature: true }, take: 5 },
-        },
-        take: 3,
-      });
-    } catch {
-      // safe ignore
-    }
-  }
-
-  const productKnowledgeFormatted = plans.map((p) => {
-    const latestPrice = p.prices[0];
-    const priceFormatted = latestPrice
-      ? `${latestPrice.currency} ${Number(latestPrice.price).toLocaleString('en-IN')}`
-      : 'Pricing on request';
-
-    return {
-      planName: p.name,
-      planCode: p.code,
-      priceFormatted,
-      billingCycle: latestPrice?.billingCycle || 'MONTHLY',
-      features: p.features.map((f) => f.feature.name),
-    };
-  });
+  const plans = await getPlanAwareKnowledge();
+  const productKnowledgeFormatted = plans.map((p) => ({
+    planName: p.name,
+    planCode: p.code,
+    priceFormatted: p.monthlyPriceFormatted,
+    billingCycle: 'MONTHLY',
+    features: p.features,
+  }));
 
   return {
     lead: {

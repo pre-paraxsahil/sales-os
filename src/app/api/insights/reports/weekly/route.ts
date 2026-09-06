@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateWeeklyReport, getWeeklyReport, listWeeklyReports } from '@/lib/analytics/reportService';
+import { getDateRangeBounds } from '@/lib/time/salesTimeEngine';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -15,8 +16,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, data: reports });
     }
 
+    const filter = (searchParams.get('filter') || '').toUpperCase();
     const dateParam = searchParams.get('date');
-    let targetDate = dateParam ? new Date(dateParam) : new Date();
+    const force = searchParams.get('force') === 'true';
+
+    let targetDate = new Date();
+    if (filter === 'LAST_WEEK') {
+      const bounds = getDateRangeBounds('LAST_WEEK');
+      targetDate = bounds.start;
+    } else if (dateParam) {
+      targetDate = new Date(dateParam);
+    }
 
     // Calculate Monday of that week
     const day = targetDate.getDay();
@@ -24,9 +34,13 @@ export async function GET(request: NextRequest) {
     const monday = new Date(targetDate);
     monday.setDate(targetDate.getDate() + diff);
 
-    let report = await getWeeklyReport(monday);
+    let report = null;
+    if (!force) {
+      report = await getWeeklyReport(monday);
+    }
+
     if (!report) {
-      report = await generateWeeklyReport(monday, false);
+      report = await generateWeeklyReport(monday, force);
     }
 
     return NextResponse.json({

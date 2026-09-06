@@ -174,3 +174,68 @@ export async function PATCH(
     );
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    if (!isValidUuid(id)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid Lead ID format' },
+        { status: 400 }
+      );
+    }
+
+    const existingLead = await prisma.lead.findUnique({
+      where: { id },
+    });
+
+    if (!existingLead) {
+      return NextResponse.json(
+        { success: false, error: 'Lead not found' },
+        { status: 404 }
+      );
+    }
+
+    // Perform safe soft-delete/archive in transaction
+    const result = await prisma.$transaction(async (tx) => {
+      const archivedLead = await tx.lead.update({
+        where: { id },
+        data: {
+          status: 'ARCHIVED',
+          archivedAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      // Audit Activity
+      await tx.activity.create({
+        data: {
+          userId: existingLead.userId,
+          leadId: id,
+          type: 'STAGE_CHANGED',
+          title: 'Lead Archived',
+          description: `Lead "${existingLead.title}" was safely archived/deleted. Historical calls and records preserved.`,
+        },
+      });
+
+      return archivedLead;
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: result,
+      message: 'Lead archived successfully. All history preserved.',
+    });
+  } catch (error: any) {
+    console.error('Error archiving lead:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to delete/archive lead.', details: error?.message },
+      { status: 500 }
+    );
+  }
+}
+

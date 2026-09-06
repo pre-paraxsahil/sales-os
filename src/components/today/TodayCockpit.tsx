@@ -26,6 +26,12 @@ import {
   Coffee,
   Bell,
   Check,
+  LogIn,
+  LogOut,
+  Timer,
+  Settings,
+  ShieldAlert,
+  PlusCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BeforeCallBriefModal } from '@/components/calls/BeforeCallBriefModal';
@@ -33,6 +39,7 @@ import { QuickCallLoggerModal } from '@/components/calls/QuickCallLoggerModal';
 import { QuickWhatsAppModal } from '@/components/whatsapp/QuickWhatsAppModal';
 import { BeforeDemoBriefModal } from '@/components/demos/BeforeDemoBriefModal';
 import { LiveDemoModal } from '@/components/demos/LiveDemoModal';
+import { AddOtherActivityModal } from '@/components/activities/AddOtherActivityModal';
 import { EnergyLevel, NextBestActionOutput } from '@/lib/schedule/types';
 
 export const TodayCockpit: React.FC = () => {
@@ -44,6 +51,7 @@ export const TodayCockpit: React.FC = () => {
   const [pulse, setPulse] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
+  const [attendanceLoading, setAttendanceLoading] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [showAiWhyDetails, setShowAiWhyDetails] = useState<boolean>(false);
 
@@ -51,6 +59,7 @@ export const TodayCockpit: React.FC = () => {
   const [activeLead, setActiveLead] = useState<any>(null);
   const [isBriefOpen, setIsBriefOpen] = useState(false);
   const [isLoggerOpen, setIsLoggerOpen] = useState(false);
+  const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [whatsAppTarget, setWhatsAppTarget] = useState<{ leadId: string; category?: string } | null>(null);
   const [activeDemoId, setActiveDemoId] = useState<string | null>(null);
   const [isDemoBriefOpen, setIsDemoBriefOpen] = useState(false);
@@ -146,6 +155,25 @@ export const TodayCockpit: React.FC = () => {
     }
   };
 
+  // Handle Attendance Clock In / Clock Out
+  const handleClockAction = async (action: 'CLOCK_IN' | 'CLOCK_OUT') => {
+    try {
+      setAttendanceLoading(true);
+      const res = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) {
+        await Promise.all([fetchCockpitData(), fetchNextAction()]);
+      }
+    } catch (err) {
+      console.error('Failed to update attendance:', err);
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
   if (loading && !overview) {
     return (
       <div className="space-y-5 animate-pulse">
@@ -166,12 +194,17 @@ export const TodayCockpit: React.FC = () => {
   const overdueItems = callsData?.overdue || [];
   const hotLeads = callsData?.hotLeads || [];
   const counts = overview?.counts || {};
+  const officeStatus = overview?.officeStatus;
+  const isClockedIn = officeStatus?.isClockedIn;
 
   // Target Calculations
-  const targetAmount = Number(targetPace?.targetAmount || 100000);
+  const isTargetConfigured = targetPace?.isConfigured ?? false;
+  const targetAmount = Number(targetPace?.targetAmount || 0);
   const achievedAmount = Number(targetPace?.achievedAmount || 0);
   const leftAmount = Math.max(0, targetAmount - achievedAmount);
-  const progressPercent = Math.min(100, Math.round((achievedAmount / (targetAmount || 1)) * 100));
+  const progressPercent = isTargetConfigured && targetAmount > 0
+    ? Math.min(100, Math.round((achievedAmount / targetAmount) * 100))
+    : 0;
 
   return (
     <div className="space-y-5">
@@ -209,9 +242,9 @@ export const TodayCockpit: React.FC = () => {
 
         {/* Target Status & Energy Level Controls */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          {/* Simple Target Progress Card */}
+          {/* Target Progress Card */}
           <div className="px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/80 text-xs flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700">
+            <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700 shrink-0">
               <Target className="w-4 h-4" />
             </div>
             <div>
@@ -219,22 +252,39 @@ export const TodayCockpit: React.FC = () => {
                 <span className="font-bold text-slate-800 uppercase tracking-wider text-[10px]">
                   Monthly Target
                 </span>
-                <span
-                  className={cn(
-                    'px-1.5 py-0.2 rounded text-[10px] font-bold',
-                    progressPercent >= 75
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : progressPercent >= 40
-                      ? 'bg-amber-100 text-amber-800'
-                      : 'bg-rose-100 text-rose-800'
-                  )}
-                >
-                  {progressPercent >= 75 ? '🟢 On Track' : progressPercent >= 40 ? '🟡 Catch Up' : '🔴 Behind'}
-                </span>
+                {isTargetConfigured ? (
+                  <span
+                    className={cn(
+                      'px-1.5 py-0.2 rounded text-[10px] font-bold',
+                      progressPercent >= 75
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : progressPercent >= 40
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-rose-100 text-rose-800'
+                    )}
+                  >
+                    {progressPercent >= 75 ? '🟢 On Track' : progressPercent >= 40 ? '🟡 Catch Up' : '🔴 Behind'}
+                  </span>
+                ) : (
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-slate-200 text-slate-700">
+                    Target not set
+                  </span>
+                )}
               </div>
-              <div className="text-[11px] font-mono text-slate-600 mt-0.5">
-                <strong className="text-slate-900">₹{achievedAmount.toLocaleString('en-IN')}</strong> / ₹
-                {targetAmount.toLocaleString('en-IN')} ({progressPercent}%) • ₹{leftAmount.toLocaleString('en-IN')} left
+              <div className="text-[11px] text-slate-600 mt-0.5">
+                {isTargetConfigured ? (
+                  <span className="font-mono">
+                    <strong className="text-slate-900">₹{achievedAmount.toLocaleString('en-IN')}</strong> / ₹
+                    {targetAmount.toLocaleString('en-IN')} ({progressPercent}%) • ₹{leftAmount.toLocaleString('en-IN')} left
+                  </span>
+                ) : (
+                  <span>
+                    <strong className="text-slate-900 font-mono">₹{achievedAmount.toLocaleString('en-IN')}</strong> achieved •{' '}
+                    <Link href="/settings" className="text-indigo-600 hover:text-indigo-800 font-semibold underline">
+                      Set target
+                    </Link>
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -281,6 +331,104 @@ export const TodayCockpit: React.FC = () => {
               Low
             </button>
           </div>
+
+          {/* Quick Add Other Activity Button */}
+          <button
+            onClick={() => setIsActivityModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer whitespace-nowrap"
+          >
+            <PlusCircle className="w-3.5 h-3.5" />
+            + Add Activity
+          </button>
+        </div>
+      </div>
+
+      {/* 1.5 LIVE OFFICE STATUS & ATTENDANCE BAR */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+          {/* Status Icon Badge */}
+          <div
+            className={cn(
+              'h-11 w-11 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs font-bold text-sm',
+              officeStatus?.code === 'WORKING'
+                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                : officeStatus?.code === 'LUNCH'
+                ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                : officeStatus?.code === 'CLOSED'
+                ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                : 'bg-slate-100 text-slate-700 border border-slate-200'
+            )}
+          >
+            {officeStatus?.code === 'WORKING' ? (
+              <Timer className="w-5 h-5 animate-spin" />
+            ) : officeStatus?.code === 'LUNCH' ? (
+              <Coffee className="w-5 h-5" />
+            ) : officeStatus?.code === 'CLOSED' ? (
+              <ShieldAlert className="w-5 h-5" />
+            ) : (
+              <Clock className="w-5 h-5" />
+            )}
+          </div>
+
+          <div className="min-w-0 space-y-0.5">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span
+                className={cn(
+                  'px-2.5 py-0.5 rounded-full text-xs font-black tracking-wide border shadow-2xs',
+                  officeStatus?.code === 'WORKING'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                    : officeStatus?.code === 'LUNCH'
+                    ? 'bg-amber-50 text-amber-800 border-amber-300'
+                    : officeStatus?.code === 'CLOSED'
+                    ? 'bg-rose-50 text-rose-800 border-rose-300'
+                    : 'bg-slate-100 text-slate-800 border-slate-300'
+                )}
+              >
+                {officeStatus?.badgeLabel || '⚪ Not Clocked In'}
+              </span>
+
+              {isClockedIn && officeStatus?.clockInTimeFormatted && (
+                <span className="text-[11px] font-mono text-slate-500 font-semibold">
+                  (Started {officeStatus.clockInTimeFormatted})
+                </span>
+              )}
+            </div>
+
+            <p className="text-xs text-slate-600 font-medium">
+              {officeStatus?.subText || 'Calculated from configured sales working profile.'}
+            </p>
+          </div>
+        </div>
+
+        {/* Clock Controls & Settings Link */}
+        <div className="flex items-center gap-2.5 self-end md:self-center shrink-0">
+          {isClockedIn ? (
+            <button
+              onClick={() => handleClockAction('CLOCK_OUT')}
+              disabled={attendanceLoading}
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-98 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-sm shadow-rose-600/20"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              {attendanceLoading ? 'Clocking Out...' : 'Clock Out'}
+            </button>
+          ) : (
+            <button
+              onClick={() => handleClockAction('CLOCK_IN')}
+              disabled={attendanceLoading}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-sm shadow-emerald-600/20"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              {attendanceLoading ? 'Clocking In...' : 'Clock In Now'}
+            </button>
+          )}
+
+          <Link
+            href="/settings"
+            className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition"
+            title="Configure Working Profile & Office Hours"
+          >
+            <Settings className="w-4 h-4" />
+          </Link>
         </div>
       </div>
 
@@ -1126,6 +1274,15 @@ export const TodayCockpit: React.FC = () => {
           onFinishDemo={() => setIsLiveDemoOpen(false)}
         />
       )}
+
+      {/* 6. Add Other Activity Modal */}
+      <AddOtherActivityModal
+        isOpen={isActivityModalOpen}
+        onClose={() => setIsActivityModalOpen(false)}
+        onSuccess={() => {
+          fetchCockpitData();
+        }}
+      />
     </div>
   );
 };

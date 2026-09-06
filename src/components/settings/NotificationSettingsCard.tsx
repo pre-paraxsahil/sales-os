@@ -166,6 +166,16 @@ export function NotificationSettingsCard() {
           {statusMessage.text}
         </div>
       )}
+
+      <div className="rounded-lg bg-indigo-50/50 p-3 text-xs text-indigo-950 border border-indigo-100 flex items-start gap-2">
+        <Bell className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+        <div className="space-y-0.5">
+          <span className="font-semibold text-indigo-900">Guaranteed Multi-Tier Fallback:</span>
+          <p className="text-[11px] text-indigo-800/80 leading-normal">
+            Even if Web Push is disabled, blocked, or unavailable on your device, all scheduled sales reminders and missed follow-ups are persistently queued in the top notification bell and Today Cockpit.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

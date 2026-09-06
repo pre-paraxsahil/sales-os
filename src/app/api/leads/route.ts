@@ -13,8 +13,14 @@ export async function GET(request: Request) {
     const filter = searchParams.get('filter')?.trim().toUpperCase() || 'ALL';
     const sort = searchParams.get('sort')?.trim() || 'created_date';
 
+    const includeArchived = searchParams.get('includeArchived') === 'true';
+
     // Build Prisma Where Clause
     const where: Prisma.LeadWhereInput = {};
+
+    if (!includeArchived && filter !== 'ARCHIVED') {
+      where.archivedAt = null;
+    }
 
     // Search filter
     if (search) {
@@ -25,6 +31,7 @@ export async function GET(request: Request) {
         { contact: { phone: { contains: search, mode: 'insensitive' } } },
         { contact: { email: { contains: search, mode: 'insensitive' } } },
         { business: { name: { contains: search, mode: 'insensitive' } } },
+        { business: { city: { contains: search, mode: 'insensitive' } } },
       ];
     }
 
@@ -57,6 +64,9 @@ export async function GET(request: Request) {
         break;
       case 'LOST':
         where.status = 'LOST';
+        break;
+      case 'ARCHIVED':
+        where.archivedAt = { not: null };
         break;
       default:
         break;
@@ -94,6 +104,19 @@ export async function GET(request: Request) {
       include: {
         business: true,
         contact: true,
+        calls: {
+          orderBy: { occurredAt: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            outcome: true,
+            occurredAt: true,
+            callType: true,
+            notes: true,
+            nextAction: true,
+            nextActionAt: true,
+          },
+        },
         _count: {
           select: {
             calls: true,
@@ -140,9 +163,12 @@ export async function POST(request: Request) {
       email,
       industry,
       location,
+      city,
       source,
       notes,
     } = body;
+
+    const resolvedCity = city?.trim() || location?.trim() || null;
 
     // Database Transaction for Atomic Creation
     const result = await prisma.$transaction(async (tx) => {
@@ -168,7 +194,14 @@ export async function POST(request: Request) {
           data: {
             name: businessName.trim(),
             industry: industry?.trim() || null,
-            city: location?.trim() || null,
+            city: resolvedCity,
+          },
+        });
+      } else if (resolvedCity) {
+        business = await tx.business.create({
+          data: {
+            name: contactName?.trim() || `Prospect (${phone.trim()})`,
+            city: resolvedCity,
           },
         });
       }

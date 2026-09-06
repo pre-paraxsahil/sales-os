@@ -89,11 +89,12 @@ async function handleCronJob(request: Request) {
         where: { id: reminder.id },
         data: {
           isSent: true,
+          status: 'SENT',
           sentAt: now,
         },
       });
 
-      // Create in-app Notification record
+      // Create in-app Notification record (Fallback & multi-surface alert)
       await prisma.notification.create({
         data: {
           userId: reminder.userId,
@@ -104,6 +105,19 @@ async function handleCronJob(request: Request) {
         },
       });
     }
+
+    // Mark pending reminders older than 15 minutes without completion as MISSED
+    const fifteenMinutesAgo = new Date(now.getTime() - 15 * 60 * 1000);
+    await prisma.reminder.updateMany({
+      where: {
+        completedAt: null,
+        status: { in: ['PENDING', 'SENT'] },
+        remindAt: { lt: fifteenMinutesAgo },
+      },
+      data: {
+        status: 'MISSED',
+      },
+    }).catch(() => null);
 
     // 3. Auto-generate reminders for overdue FollowUps if no reminder exists
     const overdueFollowUps = await prisma.followUp.findMany({

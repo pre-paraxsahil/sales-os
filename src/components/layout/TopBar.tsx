@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { SearchResultItem } from '@/app/api/search/route';
 import { NotificationDrawer } from '@/components/notifications/NotificationDrawer';
 import { AICopilotDrawer } from '@/components/ai/AICopilotDrawer';
+import { OneComProBrainModal } from '@/components/knowledge/OneComProBrainModal';
 
 interface TopBarProps {
   onOpenQuickAdd: () => void;
@@ -35,11 +36,31 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenQuickAdd }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isAICopilotOpen, setIsAICopilotOpen] = useState(false);
+  const [isSalesBrainOpen, setIsSalesBrainOpen] = useState(false);
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [attendanceStatus, setAttendanceStatus] = useState<any>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch Attendance status for header badge
+  useEffect(() => {
+    const fetchStatus = () => {
+      fetch('/api/attendance')
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.success && json.data?.officeStatus) {
+            setAttendanceStatus(json.data.officeStatus);
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Global shortcut listener: ⌘K or Ctrl+K
   useEffect(() => {
@@ -160,6 +181,16 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenQuickAdd }) => {
             <span className="hidden sm:inline">Quick Add</span>
           </button>
 
+          {/* OneComPro AI Sales Brain (Capabilities, Objections, Plans) */}
+          <button
+            onClick={() => setIsSalesBrainOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50/80 px-2.5 py-1.5 text-xs font-semibold text-purple-800 hover:bg-purple-100 hover:border-purple-300 transition-colors cursor-pointer"
+            title="OneComPro AI Sales Brain & Objection Battlecards"
+          >
+            <Sparkles className="h-4 w-4 text-purple-600" />
+            <span className="hidden lg:inline">Sales Brain</span>
+          </button>
+
           {/* AI Assistant Button (Opens Real AI Copilot Drawer) */}
           <button
             onClick={() => setIsAICopilotOpen(true)}
@@ -179,6 +210,27 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenQuickAdd }) => {
             <Bell className="h-4 w-4" />
             <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white" />
           </button>
+
+          {/* Live Office Status Badge */}
+          {attendanceStatus && (
+            <Link
+              href="/settings"
+              className={cn(
+                'hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors shadow-2xs',
+                attendanceStatus.code === 'WORKING'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                  : attendanceStatus.code === 'LUNCH'
+                  ? 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                  : attendanceStatus.code === 'CLOSED'
+                  ? 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100'
+                  : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+              )}
+              title={attendanceStatus.subText || 'Sales Office Status'}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+              <span>{attendanceStatus.badgeLabel}</span>
+            </Link>
+          )}
 
           {/* Settings / Profile Access */}
           <Link
@@ -291,6 +343,9 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenQuickAdd }) => {
 
       {/* REAL AI COPILOT & SALES COACH DRAWER */}
       <AICopilotDrawer isOpen={isAICopilotOpen} onClose={() => setIsAICopilotOpen(false)} />
+
+      {/* ONECOMPRO AI SALES BRAIN MODAL */}
+      <OneComProBrainModal isOpen={isSalesBrainOpen} onClose={() => setIsSalesBrainOpen(false)} />
     </>
   );
 };

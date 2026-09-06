@@ -3,6 +3,7 @@ import { EnergyLevel, NextBestActionOutput } from './types';
 import { getWorkHoursConfig, DEFAULT_SALES_BLOCKS } from './scheduleConfig';
 import { calculateLeadPriority } from './priorityEngine';
 import { getTargetPaceStatus } from './targetPaceService';
+import { getLocalTimeParts, getStartAndEndOfDay, DEFAULT_TIMEZONE } from '@/lib/time/salesTimeEngine';
 
 export interface NextBestActionOptions {
   currentTime?: Date;
@@ -24,18 +25,39 @@ export async function getNextBestAction(
   const userId = options.userId;
 
   const config = await getWorkHoursConfig(userId);
+  const tz = config.timezone || DEFAULT_TIMEZONE;
   const targetPace = await getTargetPaceStatus(userId);
 
-  const currentHour = now.getHours();
-  const currentMinute = now.getMinutes();
-  const currentTotalMinutes = currentHour * 60 + currentMinute;
+  const parts = getLocalTimeParts(now, tz);
+  const currentTotalMinutes = parts.hour * 60 + parts.minute;
 
-  const lunchStartMinutes = config.lunch.startHour * 60 + config.lunch.startMinute;
-  const lunchEndMinutes = config.lunch.endHour * 60 + config.lunch.endMinute;
+  const weeklyOffDays = config.weeklyOffDays || [0];
+  const isWeeklyOff = weeklyOffDays.includes(parts.dayOfWeek);
+
+  // 0. WEEKLY OFF CHECK (e.g. Sunday)
+  if (isWeeklyOff) {
+    return {
+      actionType: 'REST',
+      title: `🏖️ ${parts.dayName} — Office Closed (Weekly Off)`,
+      reason: `Today is configured as your weekly off (${parts.dayName}). Active outbound calling tasks are paused.`,
+      objective: 'Recharge for the week ahead, or optionally review pipeline analytics in Insights.',
+      priority: 'LOW',
+      estimatedMinutes: 0,
+      nextStep: 'Office resumes on Monday at 10:00 AM.',
+      blockContext: 'Weekly Off',
+      badge: 'Office Closed',
+    };
+  }
+
+  const officeStartMinutes = config.startHour * 60 + (config.startMinute || 0);
+  const officeEndMinutes = config.endHour * 60 + (config.endMinute || 0);
+
+  const lunchStartMinutes = (config.lunch?.startHour ?? 14) * 60 + (config.lunch?.startMinute ?? 0);
+  const lunchEndMinutes = (config.lunch?.endHour ?? 15) * 60 + (config.lunch?.endMinute ?? 0);
 
   // 1. LUNCH PROTECTION CHECK
   if (
-    config.lunch.isProtected &&
+    config.lunch?.isProtected &&
     !options.overrideLunch &&
     currentTotalMinutes >= lunchStartMinutes &&
     currentTotalMinutes < lunchEndMinutes
@@ -44,18 +66,38 @@ export async function getNextBestAction(
     return {
       actionType: 'LUNCH',
       title: '🍴 Protected Lunch & Mental Recharge',
-      reason: `Current time (${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}) falls within your protected lunch window (${config.lunch.startHour}:00 - ${config.lunch.endHour}:00).`,
+      reason: `Current time (${parts.formattedTime}) falls within your protected lunch window (${config.lunch.startHour}:00 - ${config.lunch.endHour}:00).`,
       objective: 'Step away from screens, recharge energy, and prepare for afternoon closing calls.',
       priority: 'MEDIUM',
       estimatedMinutes: minutesLeft,
-      nextStep: 'Afternoon sales block starts at 3:00 PM.',
+      nextStep: 'Afternoon sales block starts after lunch.',
       blockContext: 'Lunch & Recharge',
       badge: 'Protected Block',
     };
   }
 
-  // 2. CHECK IMMINENT DEMO (within next 45 minutes)
-  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  // 2. OUTSIDE OFFICE HOURS CHECK
+  if (currentTotalMinutes < officeStartMinutes || currentTotalMinutes >= officeEndMinutes) {
+    const isBefore = currentTotalMinutes < officeStartMinutes;
+    return {
+      actionType: 'PLANNING',
+      title: isBefore ? '🌅 Pre-Office Preparation & Target Review' : '🌙 Office Closed — Day Wrap-up & Tomorrow Planning',
+      reason: isBefore
+        ? `Office opens at ${config.startHour}:00 AM. Outbound prospect calling is paused.`
+        : `Office closed at ${config.endHour}:00 PM. Sales calling hours are complete for today.`,
+      objective: isBefore
+        ? 'Review today target pacing, check upcoming demos, and organize high-priority callbacks.'
+        : 'Log final deal updates, check daily report, and align priorities for tomorrow.',
+      priority: 'LOW',
+      estimatedMinutes: 20,
+      nextStep: isBefore ? `Fresh calling window opens at ${config.startHour}:00 AM.` : 'Rest and prepare for tomorrow.',
+      blockContext: 'Off Hours',
+      badge: 'Office Closed',
+    };
+  }
+
+  // 3. CHECK IMMINENT DEMO (within next 45 minutes)
+  const { end: todayEnd } = getStartAndEndOfDay(now, tz);
   const nextDemo = await prisma.demo.findFirst({
     where: {
       status: 'SCHEDULED',

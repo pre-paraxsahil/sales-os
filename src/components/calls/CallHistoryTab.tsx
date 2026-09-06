@@ -214,41 +214,67 @@ export const CallHistoryTab: React.FC<CallHistoryTabProps> = ({
               WRONG_NUMBER: 'bg-rose-50 text-rose-700 border-rose-200',
             }[c.outcome as string] || 'bg-slate-100 text-slate-700';
 
+            const formattedDate = new Date(c.occurredAt || c.createdAt).toLocaleDateString([], {
+              month: 'short',
+              day: 'numeric',
+            });
+            const formattedTime = new Date(c.occurredAt || c.createdAt).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+
             return (
               <div
                 key={c.id}
-                className="rounded-xl border border-slate-200 bg-white p-3.5 transition-all hover:border-indigo-200 shadow-xs"
+                className="rounded-2xl border border-slate-200 bg-white p-4 transition-all hover:border-indigo-200 shadow-2xs space-y-2"
               >
                 <div
                   onClick={() => setExpandedCallId(isExpanded ? null : c.id)}
-                  className="flex items-center justify-between cursor-pointer"
+                  className="flex items-start justify-between cursor-pointer gap-2"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="rounded-lg p-2 bg-slate-50 border border-slate-200 text-slate-700">
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <div className="rounded-xl p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 shrink-0 mt-0.5">
                       <PhoneCall className="h-4 w-4" />
                     </div>
-                    <div>
+                    <div className="min-w-0 flex-1">
+                      {/* Date & Time + Outcome Header */}
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-xs text-slate-900">
-                          {c.callType.replace(/_/g, ' ')}
+                        <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                          {formattedDate} · {formattedTime}
+                        </span>
+                        <span className="font-black text-xs text-slate-900">
+                          Call — {c.outcome.replace(/_/g, ' ')}
                         </span>
                         <span className={cn('rounded border px-2 py-0.5 text-[10px] font-bold', outcomeBadge)}>
-                          {c.outcome.replace(/_/g, ' ')}
+                          {c.callType.replace(/_/g, ' ')}
                         </span>
                       </div>
-                      <span className="text-[11px] text-slate-500 mt-0.5 block">
-                        {new Date(c.occurredAt || c.createdAt).toLocaleString()}
-                        {c.durationSeconds ? ` • Duration: ${c.durationSeconds}s` : ''}
-                      </span>
+
+                      {/* Response / Notes summary */}
+                      {c.notes && (
+                        <p className="text-xs text-slate-700 mt-1 font-medium leading-relaxed">
+                          &quot;{c.notes}&quot;
+                        </p>
+                      )}
+
+                      {/* Next Action Pill */}
+                      {c.nextAction && (
+                        <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+                          <span className="font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 flex items-center gap-1 text-[11px]">
+                            <Clock className="h-3 w-3 text-amber-600" />
+                            Next: <strong>{c.nextAction}</strong>
+                            {c.nextActionAt && (
+                              <span className="font-normal text-amber-700">
+                                — {new Date(c.nextActionAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({new Date(c.nextActionAt).toLocaleDateString([], { month: 'short', day: 'numeric' })})
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 text-slate-500 text-xs">
-                    {c.nextAction && (
-                      <span className="text-[11px] text-amber-700 font-semibold hidden sm:inline">
-                        Next: {c.nextAction}
-                      </span>
-                    )}
+                  <div className="flex items-center gap-1 text-slate-400 shrink-0">
                     {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </div>
                 </div>

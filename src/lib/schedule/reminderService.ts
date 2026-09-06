@@ -188,6 +188,19 @@ export async function getActiveReminders(userId?: string | null) {
   // Run sync to ensure latest reminders are present
   await syncSmartReminders(userId);
 
+  // Mark pending reminders older than 15 minutes as MISSED
+  const fifteenMinutesAgo = new Date(now.getTime() - 15 * 60 * 1000);
+  await prisma.reminder.updateMany({
+    where: {
+      completedAt: null,
+      status: { in: ['PENDING', 'SENT'] },
+      remindAt: { lt: fifteenMinutesAgo },
+    },
+    data: {
+      status: 'MISSED',
+    },
+  }).catch(() => null);
+
   return prisma.reminder.findMany({
     where: {
       completedAt: null,
@@ -206,7 +219,7 @@ export async function getActiveReminders(userId?: string | null) {
       { level: 'desc' },
       { remindAt: 'asc' },
     ],
-    take: 15,
+    take: 20,
   });
 }
 
@@ -218,6 +231,7 @@ export async function completeReminder(reminderId: string) {
     where: { id: reminderId },
     data: {
       completedAt: new Date(),
+      status: 'COMPLETED',
       isRead: true,
     },
   });
@@ -226,10 +240,42 @@ export async function completeReminder(reminderId: string) {
 /**
  * Snoozes a reminder by a given number of minutes.
  */
-export async function snoozeReminder(reminderId: string, minutes: number) {
+export async function snoozeReminder(reminderId: string, minutes: number = 15) {
   const snoozedUntil = new Date(Date.now() + minutes * 60 * 1000);
   return prisma.reminder.update({
     where: { id: reminderId },
-    data: { snoozedUntil },
+    data: {
+      snoozedUntil,
+      remindAt: snoozedUntil,
+      status: 'SNOOZED',
+    },
+  });
+}
+
+/**
+ * Marks a reminder as opened / clicked.
+ */
+export async function openReminder(reminderId: string) {
+  return prisma.reminder.update({
+    where: { id: reminderId },
+    data: {
+      isRead: true,
+      status: 'OPENED',
+    },
+  }).catch(() => null);
+}
+
+/**
+ * Reschedules a reminder to a new date and time.
+ */
+export async function rescheduleReminder(reminderId: string, newDate: Date) {
+  return prisma.reminder.update({
+    where: { id: reminderId },
+    data: {
+      remindAt: newDate,
+      snoozedUntil: null,
+      status: 'PENDING',
+      isSent: false,
+    },
   });
 }

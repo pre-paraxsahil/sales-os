@@ -20,6 +20,9 @@ export interface WorkHoursConfig {
   endHour: number;
   endMinute: number;
   workingDays: number[]; // 1=Mon, ..., 6=Sat, 0=Sun
+  weeklyOffDays?: number[]; // [0] = Sunday
+  timezone?: string; // e.g. 'Asia/Kolkata'
+  reminderLeadTimeMinutes?: number; // 5, 10, 15, 30 min (default 10)
   lunch: {
     startHour: number;
     startMinute: number;
@@ -30,6 +33,7 @@ export interface WorkHoursConfig {
   reminderThresholds: {
     demoMinutesBefore: number; // default 20
     overdueCheckMinutes: number;
+    reminderLeadTimeMinutes?: number; // 5, 10, 15, 30 min (default 10)
   };
 }
 
@@ -64,7 +68,8 @@ export interface NextBestActionOutput {
 }
 
 export interface TargetPaceResult {
-  mode: 'RECOVERY' | 'ON_TRACK' | 'AHEAD';
+  isConfigured?: boolean;
+  mode: 'RECOVERY' | 'ON_TRACK' | 'AHEAD' | 'ACHIEVED' | 'NOT_SET';
   targetAmount: number;
   achievedAmount: number;
   progressPercent: number;

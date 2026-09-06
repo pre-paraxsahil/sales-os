@@ -98,6 +98,48 @@ export async function generateDailyReport(
     .map((c) => (c.notes ? `[${c.outcome}] ${c.notes}` : `[${c.outcome}]`))
     .filter(Boolean);
 
+  // Fetch today's Task Center items (created, due, or completed today)
+  const dayTasks = await prisma.task.findMany({
+    where: {
+      AND: [
+        {
+          OR: [
+            { dueDate: { gte: startOfDay, lte: endOfDay } },
+            { createdAt: { gte: startOfDay, lte: endOfDay } },
+            { completedAt: { gte: startOfDay, lte: endOfDay } },
+          ],
+        },
+        resolvedUserId
+          ? {
+              OR: [{ userId: resolvedUserId }, { userId: null }],
+            }
+          : {},
+      ],
+    },
+    include: {
+      lead: { select: { id: true, title: true } },
+    },
+    orderBy: [{ status: 'asc' }, { dueDate: 'asc' }],
+  });
+
+  const formattedTasks = dayTasks.map((t) => ({
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    priority: t.priority,
+    status: t.status,
+    dueDate: t.dueDate?.toISOString() || null,
+    completedAt: t.completedAt?.toISOString() || null,
+    leadTitle: t.lead?.title || null,
+  }));
+
+  const tasksSummary = {
+    total: formattedTasks.length,
+    completed: formattedTasks.filter((t) => t.status === 'COMPLETED').length,
+    pending: formattedTasks.filter((t) => t.status === 'PENDING' || t.status === 'IN_PROGRESS').length,
+    items: formattedTasks,
+  };
+
   const calcRate = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
 
   const funnel = {
@@ -182,6 +224,8 @@ export async function generateDailyReport(
     salesProgress,
     activitySummary,
     sources,
+    tasks: formattedTasks,
+    tasksSummary,
     funnel,
     sales,
     aiReview,
@@ -343,6 +387,48 @@ export async function generateWeeklyReport(
 
   const hasEnoughData = calling.totalCalls >= 10 || salesProgress.closings >= 2;
 
+  // Fetch tasks in this weekly period
+  const weekTasks = await prisma.task.findMany({
+    where: {
+      AND: [
+        {
+          OR: [
+            { dueDate: { gte: monday, lte: sunday } },
+            { createdAt: { gte: monday, lte: sunday } },
+            { completedAt: { gte: monday, lte: sunday } },
+          ],
+        },
+        resolvedUserId
+          ? {
+              OR: [{ userId: resolvedUserId }, { userId: null }],
+            }
+          : {},
+      ],
+    },
+    include: {
+      lead: { select: { id: true, title: true } },
+    },
+    orderBy: [{ status: 'asc' }, { dueDate: 'asc' }],
+  });
+
+  const formattedWeekTasks = weekTasks.map((t) => ({
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    priority: t.priority,
+    status: t.status,
+    dueDate: t.dueDate?.toISOString() || null,
+    completedAt: t.completedAt?.toISOString() || null,
+    leadTitle: t.lead?.title || null,
+  }));
+
+  const weekTasksSummary = {
+    total: formattedWeekTasks.length,
+    completed: formattedWeekTasks.filter((t) => t.status === 'COMPLETED').length,
+    pending: formattedWeekTasks.filter((t) => t.status === 'PENDING' || t.status === 'IN_PROGRESS').length,
+    items: formattedWeekTasks,
+  };
+
   const reportData: WeeklyReportData = {
     weekStartDate: monday.toISOString().split('T')[0],
     weekEndDate: sunday.toISOString().split('T')[0],
@@ -355,6 +441,7 @@ export async function generateWeeklyReport(
     conversions,
     sales,
     sources,
+    tasksSummary: weekTasksSummary,
     bestDay,
     weakestDay,
     bestCallingTime,
@@ -507,6 +594,48 @@ export async function generateMonthlyReport(
     }),
   ]);
 
+  // Fetch tasks in this monthly period
+  const monthTasks = await prisma.task.findMany({
+    where: {
+      AND: [
+        {
+          OR: [
+            { dueDate: { gte: monthStart, lte: monthEnd } },
+            { createdAt: { gte: monthStart, lte: monthEnd } },
+            { completedAt: { gte: monthStart, lte: monthEnd } },
+          ],
+        },
+        resolvedUserId
+          ? {
+              OR: [{ userId: resolvedUserId }, { userId: null }],
+            }
+          : {},
+      ],
+    },
+    include: {
+      lead: { select: { id: true, title: true } },
+    },
+    orderBy: [{ status: 'asc' }, { dueDate: 'asc' }],
+  });
+
+  const formattedMonthTasks = monthTasks.map((t) => ({
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    priority: t.priority,
+    status: t.status,
+    dueDate: t.dueDate?.toISOString() || null,
+    completedAt: t.completedAt?.toISOString() || null,
+    leadTitle: t.lead?.title || null,
+  }));
+
+  const monthTasksSummary = {
+    total: formattedMonthTasks.length,
+    completed: formattedMonthTasks.filter((t) => t.status === 'COMPLETED').length,
+    pending: formattedMonthTasks.filter((t) => t.status === 'PENDING' || t.status === 'IN_PROGRESS').length,
+    items: formattedMonthTasks,
+  };
+
   const calcRate = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
 
   const connectionRate = calcRate(outcomes.connected, calling.totalCalls);
@@ -579,6 +708,7 @@ export async function generateMonthlyReport(
     salesProgress,
     activitySummary,
     dayByDay,
+    tasksSummary: monthTasksSummary,
     conversionFunnel,
     sourcePerformance,
     sales,

@@ -685,6 +685,69 @@ export const InsightsClient: React.FC = () => {
               </button>
             </div>
           </div>
+
+          {/* SECTION 5: ADDITIONAL TASKS & ACTION ITEMS (TASK CENTER MERGE) */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <CheckSquare className="w-4 h-4 text-indigo-600" />
+                5. ADDITIONAL TASKS & OTHER ACTIVITIES
+              </h3>
+              <span className="text-xs font-bold text-slate-600">
+                Total Tasks:{' '}
+                <span className="text-indigo-600 font-extrabold">
+                  {dailyReport?.tasksSummary?.total ?? dailyReport?.tasks?.length ?? 0}
+                </span>
+                {' '}({dailyReport?.tasksSummary?.completed ?? dailyReport?.tasks?.filter((t: any) => t.status === 'COMPLETED').length ?? 0} Done)
+              </span>
+            </div>
+
+            {(!dailyReport?.tasks || dailyReport.tasks.length === 0) ? (
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-center text-xs text-slate-500">
+                No additional tasks logged for this day. Action items created in Task Center appear here automatically.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                {dailyReport.tasks.map((task: any) => {
+                  const isDone = task.status === 'COMPLETED';
+                  return (
+                    <div
+                      key={task.id}
+                      className={cn(
+                        'p-3 rounded-xl border flex items-start justify-between gap-3 text-xs',
+                        isDone
+                          ? 'bg-emerald-50/40 border-emerald-200/80 text-emerald-950'
+                          : 'bg-slate-50 border-slate-200 text-slate-900'
+                      )}
+                    >
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <span className={cn('mt-0.5 shrink-0 font-bold', isDone ? 'text-emerald-600' : 'text-slate-400')}>
+                          {isDone ? '✓' : '○'}
+                        </span>
+                        <div className="min-w-0">
+                          <div className={cn('font-semibold', isDone && 'line-through text-slate-500')}>{task.title}</div>
+                          {task.description && <p className="text-[11px] text-slate-500 mt-0.5">{task.description}</p>}
+                          {task.leadTitle && (
+                            <span className="inline-block mt-1 text-[10px] font-medium text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-100">
+                              Lead: {task.leadTitle}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span
+                        className={cn(
+                          'px-2 py-0.5 rounded text-[10px] font-bold shrink-0',
+                          isDone ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                        )}
+                      >
+                        {isDone ? 'DONE' : 'PENDING'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -814,6 +877,61 @@ export const InsightsClient: React.FC = () => {
               </table>
             </div>
           </div>
+
+          {/* WEEKLY TASKS & ACTION ITEMS (TASK CENTER MERGE) */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <CheckSquare className="w-4 h-4 text-indigo-600" />
+                Weekly Tasks & Action Items
+              </h3>
+              <span className="text-xs font-bold text-slate-600">
+                Total: <span className="text-indigo-600 font-extrabold">{weeklyReport?.tasksSummary?.total || 0}</span>
+                {' '}({weeklyReport?.tasksSummary?.completed || 0} Done / {weeklyReport?.tasksSummary?.pending || 0} Pending)
+              </span>
+            </div>
+
+            {(!weeklyReport?.tasksSummary?.items || weeklyReport.tasksSummary.items.length === 0) ? (
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-center text-xs text-slate-500">
+                No tasks planned for this week.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                {weeklyReport.tasksSummary.items.map((task: any) => {
+                  const isDone = task.status === 'COMPLETED';
+                  return (
+                    <div
+                      key={task.id}
+                      className={cn(
+                        'p-3 rounded-xl border flex items-start justify-between gap-3 text-xs',
+                        isDone
+                          ? 'bg-emerald-50/40 border-emerald-200/80 text-emerald-950'
+                          : 'bg-slate-50 border-slate-200 text-slate-900'
+                      )}
+                    >
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <span className={cn('mt-0.5 shrink-0 font-bold', isDone ? 'text-emerald-600' : 'text-slate-400')}>
+                          {isDone ? '✓' : '○'}
+                        </span>
+                        <div className="min-w-0">
+                          <div className={cn('font-semibold', isDone && 'line-through text-slate-500')}>{task.title}</div>
+                          {task.description && <p className="text-[11px] text-slate-500 mt-0.5">{task.description}</p>}
+                        </div>
+                      </div>
+                      <span
+                        className={cn(
+                          'px-2 py-0.5 rounded text-[10px] font-bold shrink-0',
+                          isDone ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                        )}
+                      >
+                        {isDone ? 'DONE' : 'PENDING'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -937,6 +1055,61 @@ export const InsightsClient: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* MONTHLY TASKS & ACTION ITEMS (TASK CENTER MERGE) */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <CheckSquare className="w-4 h-4 text-indigo-600" />
+                Monthly Tasks & Execution Summary
+              </h3>
+              <span className="text-xs font-bold text-slate-600">
+                Total Tasks: <span className="text-indigo-600 font-extrabold">{monthlyReport?.tasksSummary?.total || 0}</span>
+                {' '}({monthlyReport?.tasksSummary?.completed || 0} Done / {monthlyReport?.tasksSummary?.pending || 0} Pending)
+              </span>
+            </div>
+
+            {(!monthlyReport?.tasksSummary?.items || monthlyReport.tasksSummary.items.length === 0) ? (
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-center text-xs text-slate-500">
+                No tasks logged for this month.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                {monthlyReport.tasksSummary.items.slice(0, 10).map((task: any) => {
+                  const isDone = task.status === 'COMPLETED';
+                  return (
+                    <div
+                      key={task.id}
+                      className={cn(
+                        'p-3 rounded-xl border flex items-start justify-between gap-3 text-xs',
+                        isDone
+                          ? 'bg-emerald-50/40 border-emerald-200/80 text-emerald-950'
+                          : 'bg-slate-50 border-slate-200 text-slate-900'
+                      )}
+                    >
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <span className={cn('mt-0.5 shrink-0 font-bold', isDone ? 'text-emerald-600' : 'text-slate-400')}>
+                          {isDone ? '✓' : '○'}
+                        </span>
+                        <div className="min-w-0">
+                          <div className={cn('font-semibold', isDone && 'line-through text-slate-500')}>{task.title}</div>
+                          {task.description && <p className="text-[11px] text-slate-500 mt-0.5">{task.description}</p>}
+                        </div>
+                      </div>
+                      <span
+                        className={cn(
+                          'px-2 py-0.5 rounded text-[10px] font-bold shrink-0',
+                          isDone ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                        )}
+                      >
+                        {isDone ? 'DONE' : 'PENDING'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

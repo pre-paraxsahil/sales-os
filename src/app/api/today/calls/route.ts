@@ -1,18 +1,22 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getStartAndEndOfDay, DEFAULT_TIMEZONE } from '@/lib/time/salesTimeEngine';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET() {
   try {
     const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    const { start: startOfToday, end: endOfToday } = getStartAndEndOfDay(now, DEFAULT_TIMEZONE);
 
-    // 1. Overdue Follow-up Calls
+    // 1. Overdue Follow-up Calls (excluding archived leads)
     const overdueFollowUps = await prisma.followUp.findMany({
       where: {
         status: 'PENDING',
         scheduledAt: { lt: startOfToday },
         type: 'CALL',
+        lead: { archivedAt: null },
       },
       include: {
         lead: {
@@ -23,7 +27,7 @@ export async function GET() {
       take: 10,
     });
 
-    // 2. Scheduled Calls for Today
+    // 2. Scheduled Calls for Today (excluding archived leads)
     const todayFollowUps = await prisma.followUp.findMany({
       where: {
         status: 'PENDING',
@@ -32,6 +36,7 @@ export async function GET() {
           lte: endOfToday,
         },
         type: 'CALL',
+        lead: { archivedAt: null },
       },
       include: {
         lead: {
@@ -42,18 +47,19 @@ export async function GET() {
       take: 15,
     });
 
-    // 3. High Priority / Hot Leads needing outreach
+    // 3. High Priority / Hot Leads needing outreach (excluding archived leads)
     const hotLeads = await prisma.lead.findMany({
       where: {
         temperature: 'HOT',
         status: { notIn: ['WON', 'LOST'] },
+        archivedAt: null,
       },
       include: { contact: true, business: true },
       orderBy: { updatedAt: 'desc' },
       take: 10,
     });
 
-    // 4. Upcoming Scheduled Demos for Today
+    // 4. Upcoming Scheduled Demos for Today (excluding archived leads)
     const todayDemos = await prisma.demo.findMany({
       where: {
         scheduledAt: {
@@ -61,6 +67,7 @@ export async function GET() {
           lte: endOfToday,
         },
         status: 'SCHEDULED',
+        lead: { archivedAt: null },
       },
       include: {
         lead: {

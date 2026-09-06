@@ -44,3 +44,5 @@ Thumbs.db
 # Local database backups
 *.dump
 .env.local-backup
+backups/
+*.tsbuildinfo

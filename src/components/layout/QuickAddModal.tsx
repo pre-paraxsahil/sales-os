@@ -23,6 +23,7 @@ import {
   Sparkles,
   Check,
   Tag,
+  AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LeadCreateModal } from '@/components/leads/LeadCreateModal';
@@ -139,7 +140,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
   const [isLeadCreateOpen, setIsLeadCreateOpen] = useState(false);
   const [isCallLoggerOpen, setIsCallLoggerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Fast External Call logging fields
   const [callPhone, setCallPhone] = useState('');
@@ -230,7 +231,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
     setCallNextAction('Send WhatsApp');
     setCallNextActionAt('');
     setCsvText('');
-    setFeedbackMsg(null);
+    setFeedback(null);
     setShowWhatsAppSuggestion(false);
     onClose();
   };
@@ -265,12 +266,12 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
       const json = await res.json();
       if (json.success && json.data) {
         setSelectedLead(json.data);
-        setFeedbackMsg(`Created new lead for ${callPhone.trim()}`);
+        setFeedback({ type: 'success', message: `Created new lead for ${callPhone.trim()} ✓` });
       } else {
-        setFeedbackMsg(json.error || 'Failed to create lead.');
+        setFeedback({ type: 'error', message: json.error || 'Failed to create lead.' });
       }
     } catch (err: any) {
-      setFeedbackMsg(err.message || 'Error creating lead.');
+      setFeedback({ type: 'error', message: err.message || 'Error creating lead.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -301,13 +302,24 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
           </div>
 
           {/* Feedback banner */}
-          {feedbackMsg && (
-            <div className="mt-3 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between shrink-0">
+          {feedback && (
+            <div
+              className={cn(
+                'mt-3 p-2.5 rounded-lg border text-xs font-semibold flex items-center justify-between shrink-0 animate-in fade-in',
+                feedback.type === 'error'
+                  ? 'bg-rose-50 border-rose-200 text-rose-800'
+                  : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              )}
+            >
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span>{feedbackMsg}</span>
+                {feedback.type === 'error' ? (
+                  <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                )}
+                <span>{feedback.message}</span>
               </div>
-              <button onClick={() => setFeedbackMsg(null)} className="underline text-[10px]">
+              <button onClick={() => setFeedback(null)} className="underline text-[10px] opacity-80 hover:opacity-100">
                 Dismiss
               </button>
             </div>
@@ -638,7 +650,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
                       }
 
                       if (!targetLeadId) {
-                        setFeedbackMsg('Please select or specify a lead to save this call.');
+                        setFeedback({ type: 'error', message: 'Please select or specify a lead to save this call.' });
                         setIsSubmitting(false);
                         return;
                       }
@@ -659,7 +671,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
 
                       const callJson = await callRes.json();
                       if (!callJson.success) {
-                        setFeedbackMsg(callJson.error || 'Failed to save call.');
+                        setFeedback({ type: 'error', message: callJson.error || 'Failed to save call.' });
                         setIsSubmitting(false);
                         return;
                       }
@@ -677,10 +689,10 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
                         });
                       }
 
-                      setFeedbackMsg('Call logged & Reminder / Timeline synchronized!');
+                      setFeedback({ type: 'success', message: 'Call saved successfully ✓' });
                       setTimeout(() => resetStateAndClose(), 1000);
                     } catch (err: any) {
-                      setFeedbackMsg(err.message || 'Error saving call.');
+                      setFeedback({ type: 'error', message: err.message || 'Error saving call.' });
                     } finally {
                       setIsSubmitting(false);
                     }
@@ -738,7 +750,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
                       }),
                     });
 
-                    setFeedbackMsg('Follow-up activity & Push Reminder created successfully!');
+                    setFeedback({ type: 'success', message: 'Follow-up activity & Push Reminder created successfully!' });
                     setTimeout(() => resetStateAndClose(), 1000);
                   } catch (err) {
                     console.error('Error creating reminder:', err);
@@ -836,7 +848,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
                   try {
                     const leadId = selectedLead?.id || searchResults[0]?.id;
                     if (!leadId) {
-                      setFeedbackMsg('Please search or select a lead to schedule demo.');
+                      setFeedback({ type: 'error', message: 'Please search or select a lead to schedule demo.' });
                       setIsSubmitting(false);
                       return;
                     }
@@ -855,14 +867,14 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
 
                     const json = await res.json();
                     if (json.success) {
-                      setFeedbackMsg('Demo scheduled & Live Demo Plan created!');
+                      setFeedback({ type: 'success', message: 'Demo scheduled & Live Demo Plan created! ✓' });
                       setTimeout(() => resetStateAndClose(), 1000);
                     } else {
-                      setFeedbackMsg(json.error || 'Failed to schedule demo');
+                      setFeedback({ type: 'error', message: json.error || 'Failed to schedule demo' });
                     }
                   } catch (err: any) {
                     console.error('Error scheduling demo:', err);
-                    setFeedbackMsg(err.message || 'Error scheduling demo');
+                    setFeedback({ type: 'error', message: err.message || 'Error scheduling demo' });
                   } finally {
                     setIsSubmitting(false);
                   }
@@ -986,32 +998,29 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
 
                   try {
                     const leadId = selectedLead?.id;
-                    const endpoint = leadId ? `/api/leads/${leadId}/tasks` : '/api/reminders';
 
-                    const res = await fetch(endpoint, {
+                    const res = await fetch('/api/tasks', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
                         title,
                         priority: priority || 'MEDIUM',
-                        dueDate: dueDate ? new Date(dueDate).toISOString() : null,
-                        remindAt: dueDate ? new Date(dueDate).toISOString() : new Date().toISOString(),
-                        description,
-                        message: description,
-                        type: 'TASK',
+                        dueDate: dueDate ? new Date(`${dueDate}T18:00:00+05:30`).toISOString() : null,
+                        description: description?.trim() || null,
+                        leadId: leadId || null,
                       }),
                     });
 
                     const json = await res.json();
                     if (json.success) {
-                      setFeedbackMsg('Task created successfully!');
+                      setFeedback({ type: 'success', message: 'Task created successfully! ✓' });
                       setTimeout(() => resetStateAndClose(), 1000);
                     } else {
-                      setFeedbackMsg(json.error || 'Failed to create task');
+                      setFeedback({ type: 'error', message: json.error || 'Failed to create task' });
                     }
                   } catch (err: any) {
                     console.error('Error creating task:', err);
-                    setFeedbackMsg(err.message || 'Error creating task');
+                    setFeedback({ type: 'error', message: err.message || 'Error creating task' });
                   } finally {
                     setIsSubmitting(false);
                   }
@@ -1117,14 +1126,14 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
 
                     const json = await res.json();
                     if (json.success) {
-                      setFeedbackMsg(`Sale of ₹${Number(amount).toLocaleString('en-IN')} recorded & persisted!`);
+                      setFeedback({ type: 'success', message: `Sale of ₹${Number(amount).toLocaleString('en-IN')} recorded & persisted! ✓` });
                       setTimeout(() => resetStateAndClose(), 1000);
                     } else {
-                      setFeedbackMsg(json.error || 'Failed to record sale');
+                      setFeedback({ type: 'error', message: json.error || 'Failed to record sale' });
                     }
                   } catch (err: any) {
                     console.error('Error recording sale:', err);
-                    setFeedbackMsg(err.message || 'Error recording sale');
+                    setFeedback({ type: 'error', message: err.message || 'Error recording sale' });
                   } finally {
                     setIsSubmitting(false);
                   }
@@ -1256,11 +1265,11 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
                       }
                     }
 
-                    setFeedbackMsg(`Successfully imported ${count} leads into database!`);
+                    setFeedback({ type: 'success', message: `Successfully imported ${count} leads into database! ✓` });
                     setTimeout(() => resetStateAndClose(), 1200);
                   } catch (err: any) {
                     console.error('Error importing CSV:', err);
-                    setFeedbackMsg(err.message || 'Error processing CSV import');
+                    setFeedback({ type: 'error', message: err.message || 'Error processing CSV import' });
                   } finally {
                     setIsSubmitting(false);
                   }
@@ -1323,7 +1332,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
                   try {
                     const leadId = selectedLead?.id;
                     if (!leadId) {
-                      setFeedbackMsg('Please search and select a target lead first.');
+                      setFeedback({ type: 'error', message: 'Please search and select a target lead first.' });
                       setIsSubmitting(false);
                       return;
                     }
@@ -1341,14 +1350,14 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
 
                     const json = await res.json();
                     if (json.success) {
-                      setFeedbackMsg('Call transcript logged for AI Analysis!');
+                      setFeedback({ type: 'success', message: 'Call transcript logged for AI Analysis! ✓' });
                       setTimeout(() => resetStateAndClose(), 1000);
                     } else {
-                      setFeedbackMsg(json.error || 'Failed to log call audio');
+                      setFeedback({ type: 'error', message: json.error || 'Failed to log call audio' });
                     }
                   } catch (err: any) {
                     console.error('Error logging audio call:', err);
-                    setFeedbackMsg(err.message || 'Error logging audio call');
+                    setFeedback({ type: 'error', message: err.message || 'Error logging audio call' });
                   } finally {
                     setIsSubmitting(false);
                   }

@@ -23,7 +23,7 @@ export async function getTargetPaceStatus(userId?: string | null): Promise<Targe
       period: 'MONTHLY',
       startDate: { lte: endOfMonth },
       endDate: { gte: startOfMonth },
-      ...(userId ? { userId } : {}),
+      ...(userId ? { OR: [{ userId }, { userId: null }] } : {}),
     },
     orderBy: { createdAt: 'desc' },
   });

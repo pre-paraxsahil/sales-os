@@ -105,6 +105,7 @@ export async function getNextBestAction(
         gte: now,
         lte: todayEnd,
       },
+      lead: { archivedAt: null },
       ...(userId ? { userId } : {}),
     },
     include: {
@@ -145,6 +146,7 @@ export async function getNextBestAction(
     where: {
       status: 'PENDING',
       scheduledAt: { lt: now },
+      lead: { archivedAt: null },
       ...(userId ? { userId } : {}),
     },
     include: {
@@ -188,6 +190,7 @@ export async function getNextBestAction(
     const pendingTask = await prisma.task.findFirst({
       where: {
         status: 'PENDING',
+        OR: [{ leadId: null }, { lead: { archivedAt: null } }],
         ...(userId ? { userId } : {}),
       },
       include: {
@@ -247,6 +250,7 @@ export async function getNextBestAction(
   const leads = await prisma.lead.findMany({
     where: {
       status: { notIn: ['WON', 'LOST'] },
+      archivedAt: null,
       ...(userId ? { userId } : {}),
     },
     include: {

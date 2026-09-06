@@ -294,6 +294,45 @@ export function calculateOfficeStatus(
   };
 
   // Status determination
+  if (isClockedIn) {
+    let badge = '🟢 Working';
+    let title = 'Sales Office Active';
+    if (isWeeklyOff) {
+      badge = '🟢 Working (Sunday Shift)';
+      title = `${parts.dayName} Working Shift`;
+    } else if (!isOfficeHours) {
+      badge = '🟢 Working (After-Hours)';
+      title = 'After-Hours Active Work';
+    } else if (isLunchTime) {
+      badge = '🟡 Lunch Window';
+      title = 'Lunch Window Active';
+    }
+
+    const subText = clockInTimeFormatted
+      ? `Clocked in at ${clockInTimeFormatted} • Active for ${activeDurationFormatted}`
+      : `Active work session in progress • ${activeDurationFormatted}`;
+
+    return {
+      code: isLunchTime ? 'LUNCH' : 'WORKING',
+      badgeLabel: badge,
+      title,
+      subText,
+      isWorkingDay,
+      isWeeklyOff,
+      isLunchTime,
+      isOfficeHours,
+      isClockedIn: true,
+      dayName: parts.dayName,
+      timeString: parts.formattedTime,
+      dateString: parts.formattedDate,
+      activeDurationSeconds,
+      activeDurationFormatted,
+      activeSessionId: activeSession?.id,
+      clockInTimeFormatted,
+    };
+  }
+
+  // When NOT clocked in:
   if (isWeeklyOff) {
     return {
       code: 'CLOSED',
@@ -304,14 +343,14 @@ export function calculateOfficeStatus(
       isWeeklyOff: true,
       isLunchTime: false,
       isOfficeHours: false,
-      isClockedIn,
+      isClockedIn: false,
       dayName: parts.dayName,
       timeString: parts.formattedTime,
       dateString: parts.formattedDate,
-      activeDurationSeconds,
-      activeDurationFormatted,
-      activeSessionId: activeSession?.id,
-      clockInTimeFormatted,
+      activeDurationSeconds: 0,
+      activeDurationFormatted: '0m',
+      activeSessionId: null,
+      clockInTimeFormatted: null,
     };
   }
 
@@ -329,14 +368,14 @@ export function calculateOfficeStatus(
       isWeeklyOff: false,
       isLunchTime: false,
       isOfficeHours: false,
-      isClockedIn,
+      isClockedIn: false,
       dayName: parts.dayName,
       timeString: parts.formattedTime,
       dateString: parts.formattedDate,
-      activeDurationSeconds,
-      activeDurationFormatted,
-      activeSessionId: activeSession?.id,
-      clockInTimeFormatted,
+      activeDurationSeconds: 0,
+      activeDurationFormatted: '0m',
+      activeSessionId: null,
+      clockInTimeFormatted: null,
     };
   }
 
@@ -351,27 +390,6 @@ export function calculateOfficeStatus(
       isWeeklyOff: false,
       isLunchTime: true,
       isOfficeHours: true,
-      isClockedIn,
-      dayName: parts.dayName,
-      timeString: parts.formattedTime,
-      dateString: parts.formattedDate,
-      activeDurationSeconds,
-      activeDurationFormatted,
-      activeSessionId: activeSession?.id,
-      clockInTimeFormatted,
-    };
-  }
-
-  if (!isClockedIn) {
-    return {
-      code: 'NOT_CLOCKED_IN',
-      badgeLabel: '⚪ Not Clocked In',
-      title: 'Not Clocked In',
-      subText: 'Office is active. Please Clock In to start your sales day and track activity time.',
-      isWorkingDay: true,
-      isWeeklyOff: false,
-      isLunchTime: false,
-      isOfficeHours: true,
       isClockedIn: false,
       dayName: parts.dayName,
       timeString: parts.formattedTime,
@@ -383,26 +401,23 @@ export function calculateOfficeStatus(
     };
   }
 
-  // Working & Clocked In
   return {
-    code: 'WORKING',
-    badgeLabel: '🟢 Working',
-    title: 'Sales Office Active',
-    subText: clockInTimeFormatted
-      ? `Clocked in at ${clockInTimeFormatted} • Active for ${activeDurationFormatted}`
-      : `Active work session in progress • ${activeDurationFormatted}`,
+    code: 'NOT_CLOCKED_IN',
+    badgeLabel: '⚪ Not Clocked In',
+    title: 'Not Clocked In',
+    subText: 'Office is active. Please Clock In to start your sales day and track activity time.',
     isWorkingDay: true,
     isWeeklyOff: false,
     isLunchTime: false,
     isOfficeHours: true,
-    isClockedIn: true,
+    isClockedIn: false,
     dayName: parts.dayName,
     timeString: parts.formattedTime,
     dateString: parts.formattedDate,
-    activeDurationSeconds,
-    activeDurationFormatted,
-    activeSessionId: activeSession?.id,
-    clockInTimeFormatted,
+    activeDurationSeconds: 0,
+    activeDurationFormatted: '0m',
+    activeSessionId: null,
+    clockInTimeFormatted: null,
   };
 }
 

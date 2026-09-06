@@ -65,6 +65,7 @@ export async function GET() {
             gte: startOfToday,
             lte: endOfToday,
           },
+          lead: { archivedAt: null },
         },
       }),
       prisma.demo.count({
@@ -73,13 +74,17 @@ export async function GET() {
             gte: startOfToday,
             lte: endOfToday,
           },
+          lead: { archivedAt: null },
         },
       }),
-      prisma.lead.count(),
+      prisma.lead.count({
+        where: { archivedAt: null },
+      }),
       prisma.followUp.count({
         where: {
           status: 'PENDING',
           scheduledAt: { lt: now },
+          lead: { archivedAt: null },
         },
       }),
       prisma.call.count({
@@ -94,6 +99,7 @@ export async function GET() {
         where: {
           status: 'SCHEDULED',
           scheduledAt: { gte: now, lte: endOfToday },
+          lead: { archivedAt: null },
         },
         include: {
           lead: { include: { contact: true, business: true } },
@@ -104,6 +110,7 @@ export async function GET() {
         where: {
           status: 'PENDING',
           scheduledAt: { gte: now, lte: endOfToday },
+          lead: { archivedAt: null },
         },
         include: {
           lead: { include: { contact: true, business: true } },

@@ -40,6 +40,7 @@ import { QuickWhatsAppModal } from '@/components/whatsapp/QuickWhatsAppModal';
 import { BeforeDemoBriefModal } from '@/components/demos/BeforeDemoBriefModal';
 import { LiveDemoModal } from '@/components/demos/LiveDemoModal';
 import { AddOtherActivityModal } from '@/components/activities/AddOtherActivityModal';
+import { TaskCenterCard } from '@/components/tasks/TaskCenterCard';
 import { EnergyLevel, NextBestActionOutput } from '@/lib/schedule/types';
 
 export const TodayCockpit: React.FC = () => {
@@ -433,20 +434,24 @@ export const TodayCockpit: React.FC = () => {
       </div>
 
       {/* 2. SMART SALES REMINDERS (EXPANDABLE WITH 5-WAY ACTIONS) */}
-      {reminders.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-            <div className="flex items-center gap-2">
-              <Bell className="w-4 h-4 text-indigo-600" />
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                Smart Sales Reminders ({reminders.length})
-              </h3>
-            </div>
-            <span className="text-[10px] text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-              Prioritized by Urgency
-            </span>
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs space-y-3">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <div className="flex items-center gap-2">
+            <Bell className="w-4 h-4 text-indigo-600" />
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Smart Sales Reminders ({reminders.length})
+            </h3>
           </div>
+          <span className="text-[10px] text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+            Prioritized by Urgency
+          </span>
+        </div>
 
+        {reminders.length === 0 ? (
+          <div className="py-4 text-center text-xs text-slate-500">
+            No pending reminders
+          </div>
+        ) : (
           <div className="space-y-2.5">
             {reminders.slice(0, 4).map((r: any) => {
               const isUrgent = r.level === 'CRITICAL' || new Date(r.remindAt) <= currentTime;
@@ -533,8 +538,11 @@ export const TodayCockpit: React.FC = () => {
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      {/* 2.5 DEDICATED TASK CENTER & ACTION ITEMS */}
+      <TaskCenterCard onTaskChange={fetchCockpitData} />
 
       {/* 3. NOW & NEXT DUAL HERO SECTION */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">

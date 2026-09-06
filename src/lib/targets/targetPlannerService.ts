@@ -87,7 +87,7 @@ export interface PlanItem {
   startTime: string; // ISO string
   endTime: string; // ISO string
   title: string;
-  activityType: 'CALL' | 'DEMO' | 'FOLLOW_UP' | 'LUNCH' | 'PLANNING' | 'CLOSING' | 'ADMIN';
+  activityType: 'CALL' | 'DEMO' | 'FOLLOW_UP' | 'LUNCH' | 'PLANNING' | 'CLOSING' | 'ADMIN' | 'TASK';
   isProtected: boolean;
   priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   customerName?: string | null;
@@ -95,7 +95,7 @@ export interface PlanItem {
   phone?: string | null;
   leadId?: string | null;
   objective: string;
-  source: 'REAL_DEMO' | 'REAL_FOLLOWUP' | 'HOT_LEAD' | 'PLANNED_BLOCK';
+  source: 'REAL_DEMO' | 'REAL_FOLLOWUP' | 'HOT_LEAD' | 'PLANNED_BLOCK' | 'REAL_TASK';
 }
 
 export interface NextDayPlanResult {
@@ -127,7 +127,7 @@ export async function getTargetForPeriod(
       period,
       startDate: { lte: end },
       endDate: { gte: start },
-      ...(userId ? { userId } : {}),
+      ...(userId ? { OR: [{ userId }, { userId: null }] } : {}),
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -152,24 +152,35 @@ export async function saveTargetForPeriod(
       period,
       startDate: { lte: end },
       endDate: { gte: start },
-      ...(userId ? { userId } : {}),
+      ...(userId ? { OR: [{ userId }, { userId: null }] } : {}),
     },
+    orderBy: { createdAt: 'desc' },
   });
 
-  const totalCallsTarget = (data.targetCalls ?? 0) || ((data.targetColdCalls ?? 0) + (data.targetInboundCalls ?? 0));
+  const targetAmount = data.targetAmount !== undefined ? Number(data.targetAmount) : undefined;
+  const targetSales = data.targetSales !== undefined ? Number(data.targetSales) : undefined;
+  const targetDemos = data.targetDemos !== undefined ? Number(data.targetDemos) : undefined;
+  const targetInterested = data.targetInterested !== undefined ? Number(data.targetInterested) : undefined;
+  const targetFollowUps = data.targetFollowUps !== undefined ? Number(data.targetFollowUps) : undefined;
+  const targetColdCalls = data.targetColdCalls !== undefined ? Number(data.targetColdCalls) : undefined;
+  const targetInboundCalls = data.targetInboundCalls !== undefined ? Number(data.targetInboundCalls) : undefined;
+  const targetCalls =
+    data.targetCalls !== undefined
+      ? Number(data.targetCalls)
+      : (targetColdCalls || 0) + (targetInboundCalls || 0) || undefined;
 
   if (existing) {
     return prisma.target.update({
       where: { id: existing.id },
       data: {
-        targetAmount: data.targetAmount !== undefined ? data.targetAmount : existing.targetAmount,
-        targetSales: data.targetSales !== undefined ? data.targetSales : existing.targetSales,
-        targetDemos: data.targetDemos !== undefined ? data.targetDemos : existing.targetDemos,
-        targetCalls: totalCallsTarget || existing.targetCalls,
-        targetInterested: data.targetInterested !== undefined ? data.targetInterested : existing.targetInterested,
-        targetFollowUps: data.targetFollowUps !== undefined ? data.targetFollowUps : existing.targetFollowUps,
-        targetColdCalls: data.targetColdCalls !== undefined ? data.targetColdCalls : existing.targetColdCalls,
-        targetInboundCalls: data.targetInboundCalls !== undefined ? data.targetInboundCalls : existing.targetInboundCalls,
+        targetAmount: targetAmount !== undefined ? targetAmount : existing.targetAmount,
+        targetSales: targetSales !== undefined ? targetSales : existing.targetSales,
+        targetDemos: targetDemos !== undefined ? targetDemos : existing.targetDemos,
+        targetCalls: targetCalls !== undefined ? targetCalls : existing.targetCalls,
+        targetInterested: targetInterested !== undefined ? targetInterested : existing.targetInterested,
+        targetFollowUps: targetFollowUps !== undefined ? targetFollowUps : existing.targetFollowUps,
+        targetColdCalls: targetColdCalls !== undefined ? targetColdCalls : existing.targetColdCalls,
+        targetInboundCalls: targetInboundCalls !== undefined ? targetInboundCalls : existing.targetInboundCalls,
         notes: data.notes !== undefined ? data.notes : existing.notes,
       },
     });
@@ -181,14 +192,14 @@ export async function saveTargetForPeriod(
       period,
       startDate: start,
       endDate: end,
-      targetAmount: data.targetAmount || 0,
-      targetSales: data.targetSales || 0,
-      targetDemos: data.targetDemos || 0,
-      targetCalls: totalCallsTarget,
-      targetInterested: data.targetInterested || 0,
-      targetFollowUps: data.targetFollowUps || 0,
-      targetColdCalls: data.targetColdCalls || 0,
-      targetInboundCalls: data.targetInboundCalls || 0,
+      targetAmount: targetAmount ?? 0,
+      targetSales: targetSales ?? 0,
+      targetDemos: targetDemos ?? 0,
+      targetCalls: targetCalls ?? ((targetColdCalls ?? 0) + (targetInboundCalls ?? 0)),
+      targetInterested: targetInterested ?? 0,
+      targetFollowUps: targetFollowUps ?? 0,
+      targetColdCalls: targetColdCalls ?? 0,
+      targetInboundCalls: targetInboundCalls ?? 0,
       notes: data.notes || null,
     },
   });
@@ -225,7 +236,7 @@ export async function getAllTargetsStatus(
           period: p.period,
           startDate: { lte: end },
           endDate: { gte: start },
-          ...(userId ? { userId } : {}),
+          ...(userId ? { OR: [{ userId }, { userId: null }] } : {}),
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -271,7 +282,30 @@ export async function getAllTargetsStatus(
       if (['INTERESTED', 'DEMO_BOOKED', 'SCHEDULED_DEMO'].includes(c.outcome)) achievedInterested++;
     }
 
-    const isConfigured = Boolean(targetRecord && Number(targetRecord.targetAmount) > 0);
+    const tAmount = targetRecord ? Number(targetRecord.targetAmount) : 0;
+    const tSales = targetRecord ? targetRecord.targetSales || 0 : 0;
+    const tDemos = targetRecord ? targetRecord.targetDemos || 0 : 0;
+    const tCalls = targetRecord ? targetRecord.targetCalls || (targetRecord.targetColdCalls + targetRecord.targetInboundCalls) || 0 : 0;
+    const tInterested = targetRecord ? targetRecord.targetInterested || 0 : 0;
+    const tFollowUps = targetRecord ? targetRecord.targetFollowUps || 0 : 0;
+
+    const isConfigured = Boolean(
+      targetRecord &&
+        (tAmount > 0 || tSales > 0 || tDemos > 0 || tCalls > 0 || tInterested > 0 || tFollowUps > 0)
+    );
+
+    const targetObject = targetRecord
+      ? {
+          amount: tAmount,
+          sales: tSales,
+          demos: tDemos,
+          interested: tInterested,
+          followUps: tFollowUps,
+          coldCalls: targetRecord.targetColdCalls,
+          inboundCalls: targetRecord.targetInboundCalls,
+          totalCalls: tCalls,
+        }
+      : null;
 
     if (!isConfigured) {
       results[p.key] = {
@@ -279,7 +313,7 @@ export async function getAllTargetsStatus(
         isConfigured: false,
         startDate: start,
         endDate: end,
-        target: null,
+        target: targetObject,
         achieved: {
           amount: achievedAmount,
           sales: achievedSales,
@@ -301,14 +335,16 @@ export async function getAllTargetsStatus(
       continue;
     }
 
-    const tAmount = Number(targetRecord!.targetAmount);
-    const tSales = targetRecord!.targetSales || 0;
-    const tDemos = targetRecord!.targetDemos || 0;
-    const tCalls = targetRecord!.targetCalls || (targetRecord!.targetColdCalls + targetRecord!.targetInboundCalls) || 0;
-    const tInterested = targetRecord!.targetInterested || 0;
-    const tFollowUps = targetRecord!.targetFollowUps || 0;
-
-    const progressPercent = tAmount > 0 ? Math.min(100, Math.round((achievedAmount / tAmount) * 100)) : 0;
+    let progressPercent = 0;
+    if (tAmount > 0) {
+      progressPercent = Math.min(100, Math.round((achievedAmount / tAmount) * 100));
+    } else if (tCalls > 0) {
+      progressPercent = Math.min(100, Math.round((calls.length / tCalls) * 100));
+    } else if (tDemos > 0) {
+      progressPercent = Math.min(100, Math.round((demos / tDemos) * 100));
+    } else if (tSales > 0) {
+      progressPercent = Math.min(100, Math.round((achievedSales / tSales) * 100));
+    }
 
     let status: TargetStatusCode = 'ON_TRACK';
     let statusLabel = 'On Track';
@@ -329,16 +365,7 @@ export async function getAllTargetsStatus(
       isConfigured: true,
       startDate: start,
       endDate: end,
-      target: {
-        amount: tAmount,
-        sales: tSales,
-        demos: tDemos,
-        interested: tInterested,
-        followUps: tFollowUps,
-        coldCalls: targetRecord!.targetColdCalls,
-        inboundCalls: targetRecord!.targetInboundCalls,
-        totalCalls: tCalls,
-      },
+      target: targetObject,
       achieved: {
         amount: achievedAmount,
         sales: achievedSales,
@@ -475,11 +502,12 @@ export async function generateNextDayPlan(
     };
   }
 
-  // Fetch real scheduled Demos for tomorrow
+  // Fetch real scheduled Demos for tomorrow (active leads only)
   const scheduledDemos = await prisma.demo.findMany({
     where: {
       scheduledAt: { gte: tomorrowStart, lte: tomorrowEnd },
       status: 'SCHEDULED',
+      lead: { archivedAt: null },
       ...(userId ? { userId } : {}),
     },
     include: {
@@ -488,11 +516,12 @@ export async function generateNextDayPlan(
     orderBy: { scheduledAt: 'asc' },
   });
 
-  // Fetch real scheduled Follow-ups for tomorrow
+  // Fetch real scheduled Follow-ups for tomorrow (active leads only)
   const scheduledFollowUps = await prisma.followUp.findMany({
     where: {
       scheduledAt: { gte: tomorrowStart, lte: tomorrowEnd },
       status: 'PENDING',
+      lead: { archivedAt: null },
       ...(userId ? { userId } : {}),
     },
     include: {
@@ -501,11 +530,26 @@ export async function generateNextDayPlan(
     orderBy: { scheduledAt: 'asc' },
   });
 
-  // Fetch hot leads requiring proactive follow-up
+  // Fetch real pending Task Center items due tomorrow
+  const scheduledTasks = await prisma.task.findMany({
+    where: {
+      dueDate: { gte: tomorrowStart, lte: tomorrowEnd },
+      status: { in: ['PENDING', 'IN_PROGRESS'] },
+      OR: [{ lead: { archivedAt: null } }, { leadId: null }],
+      ...(userId ? { OR: [{ userId }, { userId: null }] } : {}),
+    },
+    include: {
+      lead: { include: { contact: true, business: true } },
+    },
+    orderBy: { dueDate: 'asc' },
+  });
+
+  // Fetch hot leads requiring proactive follow-up (active leads only)
   const hotLeads = await prisma.lead.findMany({
     where: {
       temperature: 'HOT',
       status: { notIn: ['WON', 'LOST'] },
+      archivedAt: null,
       ...(userId ? { userId } : {}),
     },
     take: 3,
@@ -587,7 +631,29 @@ export async function generateNextDayPlan(
     });
   }
 
-  // 4. Protected Lunch
+  // 4. Scheduled Tasks
+  for (const task of scheduledTasks) {
+    const taskTime = task.dueDate ? getLocalTimeParts(task.dueDate, tz) : null;
+    const timeRangeStr = taskTime ? `${taskTime.formattedTime}` : 'Planned Task';
+    timeline.push({
+      id: task.id,
+      timeRange: timeRangeStr,
+      startTime: task.dueDate ? task.dueDate.toISOString() : createIsoTime(startH + 1, 0),
+      endTime: task.dueDate ? new Date(task.dueDate.getTime() + 30 * 60000).toISOString() : createIsoTime(startH + 1, 30),
+      title: `Task: ${task.title}`,
+      activityType: 'TASK',
+      isProtected: false,
+      priority: task.priority === 'URGENT' || task.priority === 'HIGH' ? 'HIGH' : 'MEDIUM',
+      customerName: task.lead?.contact?.name,
+      businessName: task.lead?.business?.name,
+      phone: task.lead?.contact?.phone,
+      leadId: task.leadId || undefined,
+      objective: task.description || task.title,
+      source: 'REAL_TASK',
+    });
+  }
+
+  // 5. Protected Lunch
   const lunchStartH = config.lunch?.startHour ?? 14;
   const lunchEndH = config.lunch?.endHour ?? 15;
   timeline.push({
@@ -603,7 +669,7 @@ export async function generateNextDayPlan(
     source: 'PLANNED_BLOCK',
   });
 
-  // 5. Hot callback session if slots available
+  // 6. Hot callback session if slots available
   if (hotLeads.length > 0) {
     const hotTimeH = Math.max(lunchEndH, 16);
     timeline.push({
@@ -627,13 +693,13 @@ export async function generateNextDayPlan(
   // Sort timeline chronologically
   timeline.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
-  const focusSummary = `Tomorrow: ${scheduledDemos.length} demo(s), ${scheduledFollowUps.length} follow-up(s), and ${hotLeads.length} hot closing priority leads.`;
+  const focusSummary = `Tomorrow: ${scheduledDemos.length} demo(s), ${scheduledFollowUps.length} follow-up(s), ${scheduledTasks.length} task(s), and ${hotLeads.length} hot closing priority leads.`;
 
   return {
     dateString: parts.formattedDate,
     displayDate: parts.displayDate,
     isWeeklyOff: false,
-    totalCommitments: scheduledDemos.length + scheduledFollowUps.length + hotLeads.length,
+    totalCommitments: scheduledDemos.length + scheduledFollowUps.length + scheduledTasks.length + hotLeads.length,
     demosCount: scheduledDemos.length,
     followUpsCount: scheduledFollowUps.length,
     timeline,

@@ -19,7 +19,7 @@ export async function PATCH(
     const normalizedAction = action?.toString().toUpperCase();
 
     let result;
-    if (normalizedAction === 'COMPLETE') {
+    if (normalizedAction === 'COMPLETE' || normalizedAction === 'DONE') {
       result = await completeReminder(id);
     } else if (normalizedAction === 'SNOOZE') {
       result = await snoozeReminder(id, minutes || 15);
@@ -34,7 +34,7 @@ export async function PATCH(
       });
     } else {
       return NextResponse.json(
-        { success: false, error: 'Invalid action. Supported: COMPLETE, SNOOZE, OPEN, RESCHEDULE, DISMISS.' },
+        { success: false, error: 'Invalid action. Supported: COMPLETE, DONE, SNOOZE, OPEN, RESCHEDULE, DISMISS.' },
         { status: 400 }
       );
     }

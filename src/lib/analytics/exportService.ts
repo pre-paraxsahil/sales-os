@@ -70,6 +70,19 @@ export function generateDailyReportCsv(report: DailyReportData): string {
     ['AI Review', 'Recommended Strategy', report.aiReview.recommendedStrategy],
   ];
 
+  // Append Additional Tasks / Action Items if available
+  const tasks = report.tasks || report.tasksSummary?.items;
+  if (tasks && tasks.length > 0) {
+    rows.push(['---', '--- ADDITIONAL TASKS / OTHER ACTIVITIES ---', '---']);
+    for (const t of tasks) {
+      rows.push([
+        'Task Center',
+        `[${t.status === 'COMPLETED' ? 'DONE' : 'PENDING'}] ${t.title}${t.priority ? ` (${t.priority})` : ''}`,
+        t.completedAt ? `Completed at ${t.completedAt}` : `Status: ${t.status}`,
+      ]);
+    }
+  }
+
   return arrayToCsv(headers, rows);
 }
 
@@ -99,6 +112,21 @@ export function generateWeeklyReportCsv(report: WeeklyReportData): string {
     ['Highlights', 'Best Calling Time', report.bestCallingTime || 'N/A'],
     ['Highlights', 'Best Lead Source', report.bestLeadSource || 'N/A'],
   ];
+
+  // Append Tasks Summary if available
+  if (report.tasksSummary && report.tasksSummary.items.length > 0) {
+    rows.push(['---', '--- WEEKLY TASKS & ACTION ITEMS ---', '---']);
+    rows.push(['Tasks Overview', 'Total Tasks', report.tasksSummary.total]);
+    rows.push(['Tasks Overview', 'Tasks Completed', report.tasksSummary.completed]);
+    rows.push(['Tasks Overview', 'Tasks Pending', report.tasksSummary.pending]);
+    for (const t of report.tasksSummary.items) {
+      rows.push([
+        'Weekly Task',
+        `[${t.status === 'COMPLETED' ? 'DONE' : 'PENDING'}] ${t.title}`,
+        t.status,
+      ]);
+    }
+  }
 
   // Append Day-by-Day rows if available
   if (report.dayByDay && report.dayByDay.length > 0) {
@@ -146,6 +174,21 @@ export function generateMonthlyReportCsv(report: MonthlyReportData): string {
     ['Highlights', 'Best Day', report.bestDay ? `${report.bestDay.dayName} ${report.bestDay.date} (₹${report.bestDay.revenue})` : 'N/A'],
     ['Highlights', 'Weakest Day', report.weakestDay ? `${report.weakestDay.dayName} ${report.weakestDay.date} (${report.weakestDay.calls} calls)` : 'N/A'],
   ];
+
+  // Append Monthly Tasks Summary if available
+  if (report.tasksSummary && report.tasksSummary.items.length > 0) {
+    rows.push(['---', '--- MONTHLY TASKS & ACTION ITEMS ---', '---']);
+    rows.push(['Monthly Tasks', 'Total Tasks', report.tasksSummary.total]);
+    rows.push(['Monthly Tasks', 'Tasks Completed', report.tasksSummary.completed]);
+    rows.push(['Monthly Tasks', 'Tasks Pending', report.tasksSummary.pending]);
+    for (const t of report.tasksSummary.items) {
+      rows.push([
+        'Monthly Task',
+        `[${t.status === 'COMPLETED' ? 'DONE' : 'PENDING'}] ${t.title}`,
+        t.status,
+      ]);
+    }
+  }
 
   // Append Source Performance rows
   if (report.sourcePerformance && report.sourcePerformance.length > 0) {

@@ -218,6 +218,24 @@ export interface PendingHotOpportunityItem {
   recommendedAction: string;
 }
 
+export interface ReportTaskItem {
+  id: string;
+  title: string;
+  description?: string | null;
+  priority: string;
+  status: string;
+  dueDate?: string | null;
+  completedAt?: string | null;
+  leadTitle?: string | null;
+}
+
+export interface ReportTaskSummary {
+  total: number;
+  completed: number;
+  pending: number;
+  items: ReportTaskItem[];
+}
+
 export interface DailyReportData {
   id?: string;
   reportDate: string;
@@ -228,6 +246,8 @@ export interface DailyReportData {
   salesProgress?: SalesProgressBreakdown;
   activitySummary?: ActivitySummaryBreakdown;
   sources?: SourcePerformanceItem[];
+  tasks?: ReportTaskItem[];
+  tasksSummary?: ReportTaskSummary;
   funnel: {
     callsToConnected: number;
     connectedToInterested: number;
@@ -278,6 +298,7 @@ export interface WeeklyReportData {
   };
   sales: SalesMetrics;
   sources?: SourcePerformanceItem[];
+  tasksSummary?: ReportTaskSummary;
   bestDay: { dayName: string; date?: string; calls: number; sales: number; revenue: number } | null;
   weakestDay: { dayName: string; date?: string; calls: number } | null;
   bestCallingTime: string | null;
@@ -307,6 +328,7 @@ export interface MonthlyReportData {
   salesProgress: SalesProgressBreakdown;
   activitySummary: ActivitySummaryBreakdown;
   dayByDay: WeeklyDayRow[];
+  tasksSummary?: ReportTaskSummary;
   conversionFunnel: {
     calls: number;
     connected: number;

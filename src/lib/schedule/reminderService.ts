@@ -3,21 +3,22 @@ import { getWorkHoursConfig } from './scheduleConfig';
 
 /**
  * Scans upcoming demos, callbacks, and overdue items to generate non-duplicate smart reminders.
+ * Strictly ignores archived/deleted leads.
  */
 export async function syncSmartReminders(userId?: string | null) {
   const now = new Date();
   const config = await getWorkHoursConfig(userId);
   const demoNoticeWindow = config.reminderThresholds.demoMinutesBefore || 20;
 
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-
-  // 1. Overdue HOT Leads (Highest priority)
+  // 1. Overdue HOT Leads (Highest priority) — only on active (non-archived) leads
   const overdueHotFollowUps = await prisma.followUp.findMany({
     where: {
       status: 'PENDING',
       scheduledAt: { lt: now },
-      lead: { temperature: 'HOT' },
+      lead: {
+        archivedAt: null,
+        temperature: 'HOT',
+      },
       ...(userId ? { userId } : {}),
     },
     include: {
@@ -27,11 +28,14 @@ export async function syncSmartReminders(userId?: string | null) {
   });
 
   for (const fu of overdueHotFollowUps) {
+    if (!fu.lead || fu.lead.archivedAt) continue;
+
     const existing = await prisma.reminder.findFirst({
       where: {
         entityId: fu.id,
         entityType: 'FOLLOW_UP',
         completedAt: null,
+        status: { notIn: ['COMPLETED', 'DONE', 'CANCELLED'] },
       },
     });
 
@@ -44,6 +48,7 @@ export async function syncSmartReminders(userId?: string | null) {
           entityType: 'FOLLOW_UP',
           type: 'OVERDUE_HOT',
           level: 'CRITICAL',
+          status: 'PENDING',
           title: `🔥 OVERDUE HOT LEAD: ${fu.lead?.contact?.name || fu.lead?.business?.name || 'Lead'}`,
           message: `Scheduled follow-up missed. High buying intent at risk. Call immediately.`,
           remindAt: now,
@@ -52,7 +57,7 @@ export async function syncSmartReminders(userId?: string | null) {
     }
   }
 
-  // 2. Demos scheduled within demoNoticeWindow minutes
+  // 2. Demos scheduled within demoNoticeWindow minutes — only on active leads
   const soonDemoWindow = new Date(now.getTime() + demoNoticeWindow * 60 * 1000);
   const upcomingDemos = await prisma.demo.findMany({
     where: {
@@ -60,6 +65,9 @@ export async function syncSmartReminders(userId?: string | null) {
       scheduledAt: {
         gte: now,
         lte: soonDemoWindow,
+      },
+      lead: {
+        archivedAt: null,
       },
       ...(userId ? { userId } : {}),
     },
@@ -71,11 +79,14 @@ export async function syncSmartReminders(userId?: string | null) {
   });
 
   for (const demo of upcomingDemos) {
+    if (!demo.lead || demo.lead.archivedAt) continue;
+
     const existing = await prisma.reminder.findFirst({
       where: {
         entityId: demo.id,
         entityType: 'DEMO',
         completedAt: null,
+        status: { notIn: ['COMPLETED', 'DONE', 'CANCELLED'] },
       },
     });
 
@@ -89,6 +100,7 @@ export async function syncSmartReminders(userId?: string | null) {
           entityType: 'DEMO',
           type: 'DEMO',
           level: 'CRITICAL',
+          status: 'PENDING',
           title: `🎯 Demo in ${minutesUntil}m: ${demo.lead?.business?.name || demo.lead?.title || 'Prospect'}`,
           message: `Product walkthrough scheduled with ${demo.lead?.contact?.name || 'Contact'}. Prepare battle plan.`,
           remindAt: demo.scheduledAt,
@@ -97,12 +109,15 @@ export async function syncSmartReminders(userId?: string | null) {
     }
   }
 
-  // 3. Regular Overdue Follow-ups (WARM/COLD)
+  // 3. Regular Overdue Follow-ups (WARM/COLD) — only on active leads
   const otherOverdueFollowUps = await prisma.followUp.findMany({
     where: {
       status: 'PENDING',
       scheduledAt: { lt: now },
-      lead: { temperature: { not: 'HOT' } },
+      lead: {
+        archivedAt: null,
+        temperature: { not: 'HOT' },
+      },
       ...(userId ? { userId } : {}),
     },
     include: {
@@ -114,11 +129,14 @@ export async function syncSmartReminders(userId?: string | null) {
   });
 
   for (const fu of otherOverdueFollowUps) {
+    if (!fu.lead || fu.lead.archivedAt) continue;
+
     const existing = await prisma.reminder.findFirst({
       where: {
         entityId: fu.id,
         entityType: 'FOLLOW_UP',
         completedAt: null,
+        status: { notIn: ['COMPLETED', 'DONE', 'CANCELLED'] },
       },
     });
 
@@ -131,6 +149,7 @@ export async function syncSmartReminders(userId?: string | null) {
           entityType: 'FOLLOW_UP',
           type: 'OVERDUE',
           level: 'IMPORTANT',
+          status: 'PENDING',
           title: `⏰ Overdue Callback: ${fu.lead?.contact?.name || fu.lead?.title || 'Lead'}`,
           message: `Follow-up was scheduled for ${new Date(fu.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`,
           remindAt: now,
@@ -139,12 +158,13 @@ export async function syncSmartReminders(userId?: string | null) {
     }
   }
 
-  // 4. Neglected Hot Leads without contact in > 48h
+  // 4. Neglected Hot Leads without contact in > 48h — only on active leads
   const twoDaysAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
   const neglectedHotLeads = await prisma.lead.findMany({
     where: {
       temperature: 'HOT',
-      status: { notIn: ['WON', 'LOST'] },
+      archivedAt: null,
+      status: { notIn: ['WON', 'LOST', 'ARCHIVED'] },
       updatedAt: { lt: twoDaysAgo },
       ...(userId ? { userId } : {}),
     },
@@ -158,6 +178,7 @@ export async function syncSmartReminders(userId?: string | null) {
         entityId: hl.id,
         entityType: 'HOT_LEAD',
         completedAt: null,
+        status: { notIn: ['COMPLETED', 'DONE', 'CANCELLED'] },
       },
     });
 
@@ -170,6 +191,7 @@ export async function syncSmartReminders(userId?: string | null) {
           entityType: 'HOT_LEAD',
           type: 'HOT_LEAD',
           level: 'HIGH',
+          status: 'PENDING',
           title: `🔥 Hot Lead Check-in: ${hl.business?.name || hl.title}`,
           message: 'No contact in over 48 hours. Keep buying momentum warm.',
           remindAt: now,
@@ -180,7 +202,7 @@ export async function syncSmartReminders(userId?: string | null) {
 }
 
 /**
- * Returns active reminders for the user, filtering out completed and currently snoozed ones.
+ * Returns active reminders for the user, strictly filtering out completed, snoozed, and archived/deleted leads.
  */
 export async function getActiveReminders(userId?: string | null) {
   const now = new Date();
@@ -201,9 +223,10 @@ export async function getActiveReminders(userId?: string | null) {
     },
   }).catch(() => null);
 
-  return prisma.reminder.findMany({
+  const reminders = await prisma.reminder.findMany({
     where: {
       completedAt: null,
+      status: { notIn: ['COMPLETED', 'DONE', 'CANCELLED'] },
       OR: [
         { snoozedUntil: null },
         { snoozedUntil: { lte: now } },
@@ -220,6 +243,14 @@ export async function getActiveReminders(userId?: string | null) {
       { remindAt: 'asc' },
     ],
     take: 20,
+  });
+
+  // Filter out any reminders linked to archived or non-existent leads
+  return reminders.filter((r) => {
+    if (r.leadId && (!r.lead || r.lead.archivedAt !== null)) {
+      return false;
+    }
+    return true;
   });
 }
 
@@ -279,3 +310,4 @@ export async function rescheduleReminder(reminderId: string, newDate: Date) {
     },
   });
 }
+

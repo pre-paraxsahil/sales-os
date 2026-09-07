@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getWorkHoursConfig } from '@/lib/schedule/scheduleConfig';
 import { getTodayDateString, calculateOfficeStatus, getLocalTimeParts } from '@/lib/time/salesTimeEngine';
+import { ensureDatabaseSchema } from '@/lib/db/ensureSchema';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
+    await ensureDatabaseSchema();
     const { searchParams } = new URL(request.url);
     const userIdParam = searchParams.get('userId');
 
@@ -71,6 +73,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureDatabaseSchema();
     const body = await request.json();
     const { action, userId: userIdParam, notes } = body;
 

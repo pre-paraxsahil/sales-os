@@ -5,12 +5,14 @@ import {
   saveTargetForPeriod,
   calculateSmartTargetSuggestion,
 } from '@/lib/targets/targetPlannerService';
+import { ensureDatabaseSchema } from '@/lib/db/ensureSchema';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
+    await ensureDatabaseSchema();
     const { searchParams } = new URL(request.url);
     const userIdParam = searchParams.get('userId');
     const suggestAmount = searchParams.get('suggestAmount');
@@ -46,6 +48,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureDatabaseSchema();
     const body = await request.json();
     const { period, data, userId: userIdParam } = body;
 

@@ -2,12 +2,14 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { validateCreateLead } from '@/lib/validations/lead';
 import { Prisma } from '@prisma/client';
+import { ensureDatabaseSchema } from '@/lib/db/ensureSchema';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(request: Request) {
   try {
+    await ensureDatabaseSchema();
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search')?.trim() || '';
     const filter = searchParams.get('filter')?.trim().toUpperCase() || 'ALL';

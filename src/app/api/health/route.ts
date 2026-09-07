@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ensureDatabaseSchema } from '@/lib/db/ensureSchema';
 
 export async function GET() {
   const startTime = Date.now();
   let dbStatus = 'disconnected';
 
   try {
-    // Lightweight database query check
+    // Lightweight database query check and schema sync
     await prisma.$queryRaw`SELECT 1`;
+    await ensureDatabaseSchema();
     dbStatus = 'connected';
 
     return NextResponse.json(

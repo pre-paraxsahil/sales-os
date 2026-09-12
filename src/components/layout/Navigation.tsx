@@ -14,6 +14,12 @@ export const navItems = [
     description: 'Daily cockpit & priority actions',
   },
   {
+    name: 'Calendar',
+    href: '/calendar',
+    icon: Calendar,
+    description: 'Dedicated sales calendar & booking',
+  },
+  {
     name: 'Leads',
     href: '/leads',
     icon: Users,
@@ -23,7 +29,7 @@ export const navItems = [
     name: 'Schedule',
     href: '/schedule',
     icon: Calendar,
-    description: 'Calls, demos & calendar',
+    description: 'Planner & targets overview',
   },
   {
     name: 'WhatsApp',

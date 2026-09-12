@@ -45,10 +45,27 @@ export async function POST(
         },
       });
 
+      const targetDate = new Date(scheduledAt);
+
       await tx.lead.update({
         where: { id: leadId },
         data: {
-          nextActionDate: new Date(scheduledAt),
+          nextActionDate: targetDate,
+        },
+      });
+
+      const remindAt = new Date(targetDate.getTime() - 10 * 60000);
+      await tx.reminder.create({
+        data: {
+          userId: lead.userId,
+          leadId,
+          title: `⏰ Reminder: ${type || 'Follow-up'} with ${lead.title}`,
+          message: notes?.trim() || `Follow-up scheduled for ${targetDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`,
+          remindAt: remindAt > new Date() ? remindAt : new Date(Date.now() + 60000),
+          entityId: followUp.id,
+          entityType: 'FOLLOW_UP',
+          status: 'PENDING',
+          isRead: false,
         },
       });
 

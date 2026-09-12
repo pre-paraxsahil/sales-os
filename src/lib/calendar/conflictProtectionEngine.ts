@@ -1,5 +1,5 @@
 import { getWorkHoursConfig } from '@/lib/schedule/scheduleConfig';
-import { getLocalTimeParts, DEFAULT_TIMEZONE } from '@/lib/time/salesTimeEngine';
+import { getLocalTimeParts, getStartAndEndOfDay, DEFAULT_TIMEZONE } from '@/lib/time/salesTimeEngine';
 import { getUnifiedCalendarEvents, CalendarEvent } from './salesCalendarEngine';
 
 export interface ConflictCheckParams {
@@ -93,9 +93,8 @@ export async function checkTimeConflicts({
     };
   }
 
-  // 4. Fetch existing events for the target day
-  const dayStart = new Date(startParts.year, startParts.month - 1, startParts.day, 0, 0, 0, 0);
-  const dayEnd = new Date(startParts.year, startParts.month - 1, startParts.day, 23, 59, 59, 999);
+  // 4. Fetch existing events for the target day using Asia/Kolkata bounds
+  const { start: dayStart, end: dayEnd } = getStartAndEndOfDay(reqStart, tz);
   const existingEvents = await getUnifiedCalendarEvents(dayStart, dayEnd, userId);
 
   for (const ev of existingEvents) {
@@ -202,8 +201,7 @@ export async function findNextAvailableSlots(
     }
 
     // Check overlap with existing events
-    const dayStart = new Date(candidateParts.year, candidateParts.month - 1, candidateParts.day, 0, 0, 0, 0);
-    const dayEnd = new Date(candidateParts.year, candidateParts.month - 1, candidateParts.day, 23, 59, 59, 999);
+    const { start: dayStart, end: dayEnd } = getStartAndEndOfDay(candidate, tz);
     const existingEvents = await getUnifiedCalendarEvents(dayStart, dayEnd, userId);
 
     let hasEventOverlap = false;

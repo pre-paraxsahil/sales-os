@@ -108,24 +108,46 @@ export async function POST(request: NextRequest) {
       ? await prisma.user.findUnique({ where: { id: userIdParam } })
       : (await prisma.user.findFirst({ where: { role: 'OWNER' } })) || (await prisma.user.findFirst());
 
-    const task = await prisma.task.create({
-      data: {
-        title: title.trim(),
-        description: description?.trim() || null,
-        priority: (['LOW', 'MEDIUM', 'HIGH', 'URGENT'].includes(priority) ? priority : 'MEDIUM') as TaskPriority,
-        status: 'PENDING',
-        dueDate: dueDate ? new Date(dueDate) : null,
-        userId: user?.id || null,
-        leadId: leadId || null,
-      },
-      include: {
-        lead: {
-          include: {
-            contact: true,
-            business: true,
+    const task = await prisma.$transaction(async (tx) => {
+      const createdTask = await tx.task.create({
+        data: {
+          title: title.trim(),
+          description: description?.trim() || null,
+          priority: (['LOW', 'MEDIUM', 'HIGH', 'URGENT'].includes(priority) ? priority : 'MEDIUM') as TaskPriority,
+          status: 'PENDING',
+          dueDate: dueDate ? new Date(dueDate) : null,
+          userId: user?.id || null,
+          leadId: leadId || null,
+        },
+        include: {
+          lead: {
+            include: {
+              contact: true,
+              business: true,
+            },
           },
         },
-      },
+      });
+
+      if (dueDate) {
+        const targetDate = new Date(dueDate);
+        const remindAt = new Date(targetDate.getTime() - 10 * 60000);
+        await tx.reminder.create({
+          data: {
+            userId: user?.id || null,
+            leadId: leadId || null,
+            title: `⏰ Task Reminder: ${createdTask.title}`,
+            message: description?.trim() || `Task due at ${targetDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`,
+            remindAt: remindAt > new Date() ? remindAt : new Date(Date.now() + 60000),
+            entityId: createdTask.id,
+            entityType: 'TASK',
+            status: 'PENDING',
+            isRead: false,
+          },
+        });
+      }
+
+      return createdTask;
     });
 
     return NextResponse.json({

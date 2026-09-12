@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { getWorkHoursConfig } from '@/lib/schedule/scheduleConfig';
-import { getStartAndEndOfDay, getLocalTimeParts, DEFAULT_TIMEZONE } from '@/lib/time/salesTimeEngine';
+import { getStartAndEndOfDay, getLocalTimeParts, getTodayDateString, DEFAULT_TIMEZONE } from '@/lib/time/salesTimeEngine';
 
 export type CalendarActivityType =
   | 'CALL'
@@ -65,6 +65,14 @@ export interface DayCapacityStats {
   totalEventsCount: number;
   completedEventsCount: number;
   missedEventsCount: number;
+  // Real-time remaining capacity fields
+  totalRemainingMinsToday?: number;
+  totalRemainingFormatted?: string;
+  freeRemainingMinsToday?: number;
+  freeRemainingFormatted?: string;
+  bookedRemainingMinsToday?: number;
+  bookedRemainingFormatted?: string;
+  nextActivityFormatted?: string | null;
 }
 
 /**
@@ -401,13 +409,14 @@ export async function calculateDayCapacity(
   userId?: string | null
 ): Promise<DayCapacityStats> {
   const config = await getWorkHoursConfig(userId);
-  const { start, end } = getStartAndEndOfDay(date, config.timezone || DEFAULT_TIMEZONE);
+  const tz = config.timezone || DEFAULT_TIMEZONE;
+  const { start, end } = getStartAndEndOfDay(date, tz);
   const events = await getUnifiedCalendarEvents(start, end, userId);
 
   // Office total available minutes (e.g. 10:00 to 18:00 = 480 mins, minus lunch 60 mins = 420 mins)
-  const officeStartMins = config.startHour * 60 + config.startMinute;
-  const officeEndMins = config.endHour * 60 + config.endMinute;
-  const lunchMins = (config.lunch?.endHour! - config.lunch?.startHour!) * 60;
+  const officeStartMins = config.startHour * 60 + (config.startMinute || 0);
+  const officeEndMins = config.endHour * 60 + (config.endMinute || 0);
+  const lunchMins = ((config.lunch?.endHour ?? 15) - (config.lunch?.startHour ?? 14)) * 60;
   const totalOfficeMins = Math.max(0, officeEndMins - officeStartMins - lunchMins);
 
   let bookedMinutes = 0;
@@ -442,8 +451,70 @@ export async function calculateDayCapacity(
     const h = Math.floor(mins / 60);
     const m = mins % 60;
     if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
     return `${h}h ${m}m`;
   };
+
+  // REAL-TIME CAPACITY CALCULATION FOR TODAY
+  const now = new Date();
+  const todayStr = getTodayDateString(now, tz);
+  const targetStr = getTodayDateString(date, tz);
+  const isTargetToday = todayStr === targetStr;
+
+  let totalRemainingMinsToday = totalOfficeMins;
+  let bookedRemainingMinsToday = 0;
+
+  if (isTargetToday) {
+    const nowParts = getLocalTimeParts(now, tz);
+    const currentMins = nowParts.hour * 60 + nowParts.minute;
+    const remainingOfficeMins = Math.max(0, officeEndMins - currentMins);
+
+    // Subtract lunch if lunch is still ahead today
+    const lunchStartMins = (config.lunch?.startHour ?? 14) * 60 + (config.lunch?.startMinute ?? 0);
+    const lunchEndMins = (config.lunch?.endHour ?? 15) * 60 + (config.lunch?.endMinute ?? 0);
+    let remainingLunchMins = 0;
+    if (currentMins < lunchStartMins) {
+      remainingLunchMins = lunchEndMins - lunchStartMins;
+    } else if (currentMins >= lunchStartMins && currentMins < lunchEndMins) {
+      remainingLunchMins = lunchEndMins - currentMins;
+    }
+
+    totalRemainingMinsToday = Math.max(0, remainingOfficeMins - remainingLunchMins);
+
+    // Sum booked & buffer time for remaining active/scheduled events today
+    for (const ev of events) {
+      if (ev.type === 'LUNCH' || ev.status === 'CANCELLED' || ev.status === 'COMPLETED') continue;
+      const evEndMins = ev.endTime.getHours() * 60 + ev.endTime.getMinutes() + (ev.bufferMinutes || 0);
+      if (evEndMins > currentMins) {
+        const evStartMins = ev.startTime.getHours() * 60 + ev.startTime.getMinutes();
+        const effectiveStart = Math.max(currentMins, evStartMins);
+        const effectiveEnd = Math.min(officeEndMins, evEndMins);
+        if (effectiveEnd > effectiveStart) {
+          bookedRemainingMinsToday += (effectiveEnd - effectiveStart);
+        }
+      }
+    }
+  } else {
+    bookedRemainingMinsToday = bookedMinutes;
+  }
+
+  const freeRemainingMinsToday = Math.max(0, totalRemainingMinsToday - bookedRemainingMinsToday);
+
+  // Find NEXT upcoming activity
+  const upcomingEv = events.find(
+    (ev) => ev.type !== 'LUNCH' && ['SCHEDULED', 'IN_PROGRESS'].includes(ev.status) && ev.startTime.getTime() >= now.getTime() - 5 * 60000
+  );
+
+  let nextActivityFormatted: string | null = null;
+  if (upcomingEv) {
+    const timeStr = upcomingEv.startTime.toLocaleTimeString('en-IN', {
+      timeZone: tz,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+    nextActivityFormatted = `${timeStr} — ${upcomingEv.title}`;
+  }
 
   return {
     bookedMinutes,
@@ -456,5 +527,13 @@ export async function calculateDayCapacity(
     totalEventsCount: events.filter((e) => e.type !== 'LUNCH').length,
     completedEventsCount,
     missedEventsCount,
+    totalRemainingMinsToday,
+    totalRemainingFormatted: formatHoursMins(totalRemainingMinsToday),
+    freeRemainingMinsToday,
+    freeRemainingFormatted: formatHoursMins(freeRemainingMinsToday),
+    bookedRemainingMinsToday,
+    bookedRemainingFormatted: formatHoursMins(bookedRemainingMinsToday),
+    nextActivityFormatted,
   };
 }
+

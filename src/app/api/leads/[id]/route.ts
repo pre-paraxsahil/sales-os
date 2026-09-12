@@ -145,7 +145,39 @@ export async function PATCH(
         },
       });
 
-      // 2. Audit Activity if status changed
+      // 2. Auto-sync FollowUp & Reminder if nextActionDate is provided
+      if (nextActionDate) {
+        const targetDate = new Date(nextActionDate);
+        if (!isNaN(targetDate.getTime())) {
+          const fu = await tx.followUp.create({
+            data: {
+              leadId: id,
+              userId: existingLead.userId,
+              type: 'CALL',
+              status: 'PENDING',
+              scheduledAt: targetDate,
+              notes: notes || `Follow-up updated for ${existingLead.title}`,
+            },
+          });
+
+          const remindAt = new Date(targetDate.getTime() - 10 * 60000);
+          await tx.reminder.create({
+            data: {
+              userId: existingLead.userId,
+              leadId: id,
+              title: `⏰ Reminder: Follow-up with ${existingLead.title}`,
+              message: notes || `Follow-up scheduled for ${targetDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`,
+              remindAt: remindAt > new Date() ? remindAt : new Date(Date.now() + 60000),
+              entityId: fu.id,
+              entityType: 'FOLLOW_UP',
+              status: 'PENDING',
+              isRead: false,
+            },
+          });
+        }
+      }
+
+      // 3. Audit Activity if status changed
       if (status && status !== existingLead.status) {
         await tx.activity.create({
           data: {

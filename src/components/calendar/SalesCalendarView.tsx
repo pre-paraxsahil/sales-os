@@ -39,6 +39,13 @@ export const SalesCalendarView: React.FC = () => {
     totalEventsCount: 0,
     completedEventsCount: 0,
     missedEventsCount: 0,
+    totalRemainingMinsToday: 420,
+    totalRemainingFormatted: '7h 0m',
+    freeRemainingMinsToday: 420,
+    freeRemainingFormatted: '7h 0m',
+    bookedRemainingMinsToday: 0,
+    bookedRemainingFormatted: '0m',
+    nextActivityFormatted: null,
   });
   const [missedEvents, setMissedEvents] = useState<CalendarEvent[]>([]);
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'ACTIVE' | 'COMPLETED' | 'MISSED'>('ALL');
@@ -156,6 +163,59 @@ export const SalesCalendarView: React.FC = () => {
 
       {/* Day Capacity Header Bar */}
       <DayCapacityHeader capacity={capacity} missedCount={missedEvents.length} />
+
+      {/* Real-Time Next Best Action Time-Context Banner (Part 4) */}
+      {(() => {
+        const topMissed = missedEvents[0];
+        const upcomingEvent = events.find(
+          (e) => e.type !== 'LUNCH' && e.status === 'SCHEDULED' && e.startTime.getTime() >= Date.now()
+        );
+
+        let actionTitle = 'Execute High-Priority Sales Outreach';
+        let actionReason = `You have ${capacity.freeRemainingFormatted || capacity.freeFormatted} usable free time remaining today.`;
+        let targetLeadId: string | undefined = undefined;
+
+        if (topMissed) {
+          actionTitle = `Follow-up with ${topMissed.lead?.contactName || topMissed.lead?.businessName || topMissed.lead?.title || topMissed.title}`;
+          actionReason = `This activity is overdue and you have an open free time window right now.`;
+          targetLeadId = topMissed.leadId || undefined;
+        } else if (upcomingEvent) {
+          const startMins = Math.max(0, Math.round((upcomingEvent.startTime.getTime() - Date.now()) / 60000));
+          actionTitle = `Prepare for ${upcomingEvent.title}`;
+          actionReason = `Starts in ${startMins}m (${upcomingEvent.startTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}). Utilize current free time for prep.`;
+          targetLeadId = upcomingEvent.leadId || undefined;
+        }
+
+        return (
+          <div className="bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-purple-500/10 border border-amber-200/70 rounded-2xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-start gap-3">
+              <div className="h-8 w-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-2xs">
+                <Sparkles className="h-4 w-4 fill-amber-200 text-amber-900" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md">
+                    BEST ACTION NOW
+                  </span>
+                  <span className="text-xs font-bold text-slate-900">{actionTitle}</span>
+                </div>
+                <p className="text-[11px] text-slate-600 mt-0.5 font-medium">
+                  <strong>WHY:</strong> {actionReason}
+                </p>
+              </div>
+            </div>
+
+            {targetLeadId && (
+              <button
+                onClick={() => setCallLoggerTarget({ leadId: targetLeadId })}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 shrink-0 self-start sm:self-center transition-all shadow-2xs"
+              >
+                Log Action Now
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Controls Bar: Views, Date Nav, Filters */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-3 shadow-2xs flex flex-wrap items-center justify-between gap-3">

@@ -52,56 +52,58 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
       const reschEnd = new Date(reschStart.getTime() + Number(durationMinutes) * 60000);
 
-      // Update target model
-      if (sourceEntity === 'DEMO') {
-        await prisma.demo.update({
-          where: { id: rawId },
-          data: {
-            scheduledAt: reschStart,
-            durationMinutes: Number(durationMinutes),
-            status: 'SCHEDULED',
-            ...(notes ? { notes } : {}),
-          },
-        });
-      } else if (sourceEntity === 'FOLLOW_UP') {
-        await prisma.followUp.update({
-          where: { id: rawId },
-          data: {
-            scheduledAt: reschStart,
-            status: 'PENDING',
-            ...(notes ? { notes } : {}),
-          },
-        });
-      } else if (sourceEntity === 'TASK') {
-        await prisma.task.update({
-          where: { id: rawId },
-          data: {
-            dueDate: reschStart,
-            status: 'PENDING',
-            ...(notes ? { description: notes } : {}),
-          },
-        });
-      } else {
-        await prisma.scheduleBlock.update({
-          where: { id: rawId },
-          data: {
-            startTime: reschStart,
-            endTime: reschEnd,
-            status: 'ACTIVE',
-            ...(notes ? { notes } : {}),
-          },
-        });
-      }
+      // Perform update inside transaction
+      await prisma.$transaction(async (tx) => {
+        if (sourceEntity === 'DEMO') {
+          await tx.demo.update({
+            where: { id: rawId },
+            data: {
+              scheduledAt: reschStart,
+              durationMinutes: Number(durationMinutes),
+              status: 'SCHEDULED',
+              ...(notes ? { notes } : {}),
+            },
+          });
+        } else if (sourceEntity === 'FOLLOW_UP') {
+          await tx.followUp.update({
+            where: { id: rawId },
+            data: {
+              scheduledAt: reschStart,
+              status: 'PENDING',
+              ...(notes ? { notes } : {}),
+            },
+          });
+        } else if (sourceEntity === 'TASK') {
+          await tx.task.update({
+            where: { id: rawId },
+            data: {
+              dueDate: reschStart,
+              status: 'PENDING',
+              ...(notes ? { description: notes } : {}),
+            },
+          });
+        } else {
+          await tx.scheduleBlock.update({
+            where: { id: rawId },
+            data: {
+              startTime: reschStart,
+              endTime: reschEnd,
+              status: 'ACTIVE',
+              ...(notes ? { notes } : {}),
+            },
+          });
+        }
 
-      // Update linked reminder
-      const remindAt = new Date(reschStart.getTime() - 10 * 60000);
-      await prisma.reminder.updateMany({
-        where: { entityId: rawId },
-        data: {
-          remindAt: remindAt > new Date() ? remindAt : new Date(Date.now() + 60000),
-          status: 'PENDING',
-          isRead: false,
-        },
+        // Update linked reminder
+        const remindAt = new Date(reschStart.getTime() - 10 * 60000);
+        await tx.reminder.updateMany({
+          where: { entityId: rawId },
+          data: {
+            remindAt: remindAt > new Date() ? remindAt : new Date(Date.now() + 60000),
+            status: 'PENDING',
+            isRead: false,
+          },
+        });
       });
 
       return NextResponse.json({
@@ -111,32 +113,34 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     }
 
     if (action === 'MARK_DONE') {
-      if (sourceEntity === 'DEMO') {
-        await prisma.demo.update({
-          where: { id: rawId },
-          data: { status: 'COMPLETED', completedAt: new Date() },
-        });
-      } else if (sourceEntity === 'FOLLOW_UP') {
-        await prisma.followUp.update({
-          where: { id: rawId },
-          data: { status: 'COMPLETED', completedAt: new Date() },
-        });
-      } else if (sourceEntity === 'TASK') {
-        await prisma.task.update({
-          where: { id: rawId },
-          data: { status: 'COMPLETED', completedAt: new Date() },
-        });
-      } else {
-        await prisma.scheduleBlock.update({
-          where: { id: rawId },
-          data: { status: 'COMPLETED' },
-        });
-      }
+      await prisma.$transaction(async (tx) => {
+        if (sourceEntity === 'DEMO') {
+          await tx.demo.update({
+            where: { id: rawId },
+            data: { status: 'COMPLETED', completedAt: new Date() },
+          });
+        } else if (sourceEntity === 'FOLLOW_UP') {
+          await tx.followUp.update({
+            where: { id: rawId },
+            data: { status: 'COMPLETED', completedAt: new Date() },
+          });
+        } else if (sourceEntity === 'TASK') {
+          await tx.task.update({
+            where: { id: rawId },
+            data: { status: 'COMPLETED', completedAt: new Date() },
+          });
+        } else {
+          await tx.scheduleBlock.update({
+            where: { id: rawId },
+            data: { status: 'COMPLETED' },
+          });
+        }
 
-      // Mark linked reminder done
-      await prisma.reminder.updateMany({
-        where: { entityId: rawId },
-        data: { status: 'COMPLETED', completedAt: new Date(), isRead: true },
+        // Mark linked reminder done
+        await tx.reminder.updateMany({
+          where: { entityId: rawId },
+          data: { status: 'COMPLETED', completedAt: new Date(), isRead: true },
+        });
       });
 
       return NextResponse.json({
@@ -146,31 +150,33 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     }
 
     if (action === 'CANCEL') {
-      if (sourceEntity === 'DEMO') {
-        await prisma.demo.update({
-          where: { id: rawId },
-          data: { status: 'CANCELLED' },
-        });
-      } else if (sourceEntity === 'FOLLOW_UP') {
-        await prisma.followUp.update({
-          where: { id: rawId },
-          data: { status: 'CANCELLED' },
-        });
-      } else if (sourceEntity === 'TASK') {
-        await prisma.task.update({
-          where: { id: rawId },
-          data: { status: 'CANCELLED' },
-        });
-      } else {
-        await prisma.scheduleBlock.update({
-          where: { id: rawId },
-          data: { status: 'CANCELLED' },
-        });
-      }
+      await prisma.$transaction(async (tx) => {
+        if (sourceEntity === 'DEMO') {
+          await tx.demo.update({
+            where: { id: rawId },
+            data: { status: 'CANCELLED' },
+          });
+        } else if (sourceEntity === 'FOLLOW_UP') {
+          await tx.followUp.update({
+            where: { id: rawId },
+            data: { status: 'CANCELLED' },
+          });
+        } else if (sourceEntity === 'TASK') {
+          await tx.task.update({
+            where: { id: rawId },
+            data: { status: 'CANCELLED' },
+          });
+        } else {
+          await tx.scheduleBlock.update({
+            where: { id: rawId },
+            data: { status: 'CANCELLED' },
+          });
+        }
 
-      await prisma.reminder.updateMany({
-        where: { entityId: rawId },
-        data: { status: 'CANCELLED' },
+        await tx.reminder.updateMany({
+          where: { entityId: rawId },
+          data: { status: 'CANCELLED' },
+        });
       });
 
       return NextResponse.json({

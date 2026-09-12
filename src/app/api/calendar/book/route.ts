@@ -31,8 +31,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = (await prisma.user.findFirst({ where: { role: 'OWNER' } })) || (await prisma.user.findFirst());
-    const userId = user?.id;
+    // Past time booking prevention
+    const now = new Date();
+    if (start.getTime() < now.getTime() - 60000) {
+      return NextResponse.json(
+        { success: false, error: 'That slot has already passed.' },
+        { status: 400 }
+      );
+    }
+
+    // Sanitize leadId
+    const sanitizedLeadId =
+      typeof leadId === 'string' && leadId.trim().length > 0 ? leadId.trim() : null;
+
+    const user =
+      (await prisma.user.findFirst({ where: { role: 'OWNER' } })) ||
+      (await prisma.user.findFirst());
+    const userId = user?.id || null;
+
+    // Verify lead existence if leadId is provided
+    let lead = null;
+    if (sanitizedLeadId) {
+      lead = await prisma.lead.findUnique({
+        where: { id: sanitizedLeadId },
+        include: { contact: true, business: true },
+      });
+      if (!lead) {
+        return NextResponse.json(
+          { success: false, error: 'Unable to save because the lead could not be found.' },
+          { status: 404 }
+        );
+      }
+    }
 
     // 1. Conflict Protection Pre-check
     const conflictResult = await checkTimeConflicts({
@@ -46,7 +76,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: conflictResult.message || 'That time is already booked.',
+          error: conflictResult.message || 'That slot is already booked.',
           conflict: conflictResult,
         },
         { status: 409 }
@@ -54,151 +84,169 @@ export async function POST(req: NextRequest) {
     }
 
     const normalizedAct = normalizeActivityType(activityType);
-    let lead = null;
-    if (leadId) {
-      lead = await prisma.lead.findUnique({
-        where: { id: leadId },
-        include: { contact: true, business: true },
-      });
-    }
-
-    const leadName = lead?.business?.name || lead?.contact?.name || lead?.title || 'Prospect';
+    const leadName =
+      lead?.business?.name || lead?.contact?.name || lead?.title || 'Prospect';
     const end = new Date(start.getTime() + Number(durationMinutes) * 60000);
+    const numDuration = Number(durationMinutes);
+    const numBuffer = Number(bufferMinutes);
+    const numReminderLead = Number(reminderLeadMinutes);
 
-    let createdRecordId = '';
-    let sourceEntity = 'SCHEDULE_BLOCK';
+    // 2. Perform transactional write (Domain entity + Activity + Reminder)
+    const result = await prisma.$transaction(async (tx) => {
+      let createdRecordId = '';
+      let sourceEntity = 'SCHEDULE_BLOCK';
 
-    // 2. Create authoritative record
-    if (normalizedAct === 'DEMO') {
-      const demo = await prisma.demo.create({
-        data: {
-          leadId: leadId || null,
-          userId: userId || null,
-          scheduledAt: start,
-          durationMinutes: Number(durationMinutes),
-          notes: notes || `Demo scheduled with ${leadName}`,
-          status: 'SCHEDULED',
-        },
-      });
-      createdRecordId = demo.id;
-      sourceEntity = 'DEMO';
-
-      // Log Lead Activity
-      if (leadId) {
-        await prisma.activity.create({
+      if (normalizedAct === 'DEMO') {
+        const demo = await tx.demo.create({
           data: {
-            leadId,
-            userId: userId || null,
-            type: 'DEMO_SCHEDULED',
-            title: `Demo Scheduled for ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-            description: notes || `Demo booked with ${leadName}`,
+            leadId: sanitizedLeadId,
+            userId,
+            scheduledAt: start,
+            durationMinutes: numDuration,
+            notes: notes || `Demo scheduled with ${leadName}`,
+            status: 'SCHEDULED',
           },
         });
+        createdRecordId = demo.id;
+        sourceEntity = 'DEMO';
+
+        if (sanitizedLeadId) {
+          await tx.activity.create({
+            data: {
+              leadId: sanitizedLeadId,
+              userId,
+              type: 'DEMO_SCHEDULED',
+              title: `Demo Scheduled for ${start.toLocaleTimeString('en-IN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true,
+              })}`,
+              description: notes || `Demo booked with ${leadName}`,
+            },
+          });
+        }
+      } else if (
+        normalizedAct === 'CALLBACK' ||
+        normalizedAct === 'FOLLOW_UP' ||
+        normalizedAct === 'SEND_DETAILS'
+      ) {
+        const fuTypeMap: Record<string, 'CALL' | 'WHATSAPP' | 'EMAIL' | 'MEETING' | 'OTHER'> = {
+          CALLBACK: 'CALL',
+          FOLLOW_UP: 'CALL',
+          SEND_DETAILS: 'WHATSAPP',
+        };
+
+        const followUp = await tx.followUp.create({
+          data: {
+            leadId: sanitizedLeadId,
+            userId,
+            scheduledAt: start,
+            type: fuTypeMap[normalizedAct] || 'CALL',
+            status: 'PENDING',
+            notes: notes || `${normalizedAct} with ${leadName}`,
+          },
+        });
+        createdRecordId = followUp.id;
+        sourceEntity = 'FOLLOW_UP';
+
+        if (sanitizedLeadId) {
+          await tx.activity.create({
+            data: {
+              leadId: sanitizedLeadId,
+              userId,
+              type: 'FOLLOW_UP_SET',
+              title: `${normalizedAct} Scheduled`,
+              description: notes || `Scheduled for ${start.toLocaleString('en-IN')}`,
+            },
+          });
+        }
+      } else if (normalizedAct === 'TASK') {
+        const task = await tx.task.create({
+          data: {
+            leadId: sanitizedLeadId,
+            userId,
+            title: notes || `Sales Task: ${leadName}`,
+            dueDate: start,
+            priority: 'HIGH',
+            status: 'PENDING',
+            description: notes,
+          },
+        });
+        createdRecordId = task.id;
+        sourceEntity = 'TASK';
+      } else {
+        // Custom block / general sales time
+        const block = await tx.scheduleBlock.create({
+          data: {
+            leadId: sanitizedLeadId,
+            userId,
+            title: `${activityType}: ${leadName}`,
+            blockType: 'CALLING',
+            activityType: normalizedAct,
+            startTime: start,
+            endTime: end,
+            priority: 'HIGH',
+            status: 'ACTIVE',
+            notes: notes || `${activityType} booking`,
+            metadata: JSON.stringify({ bufferMinutes: numBuffer }),
+          },
+        });
+        createdRecordId = block.id;
+        sourceEntity = 'SCHEDULE_BLOCK';
       }
-    } else if (normalizedAct === 'CALLBACK' || normalizedAct === 'FOLLOW_UP' || normalizedAct === 'SEND_DETAILS') {
-      const fuTypeMap: Record<string, 'CALL' | 'WHATSAPP' | 'EMAIL' | 'MEETING' | 'OTHER'> = {
-        CALLBACK: 'CALL',
-        FOLLOW_UP: 'CALL',
-        SEND_DETAILS: 'WHATSAPP',
+
+      // Create Linked Reminder
+      const remindAt = new Date(start.getTime() - numReminderLead * 60000);
+      const reminder = await tx.reminder.create({
+        data: {
+          userId,
+          leadId: sanitizedLeadId,
+          title: `⏰ Reminder: ${activityType} with ${leadName}`,
+          message:
+            notes ||
+            `${activityType} starts at ${start.toLocaleTimeString('en-IN', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true,
+            })}`,
+          remindAt: remindAt > new Date() ? remindAt : new Date(Date.now() + 60000),
+          entityId: createdRecordId,
+          entityType: sourceEntity,
+          status: 'PENDING',
+          isRead: false,
+        },
+      });
+
+      return {
+        id: createdRecordId,
+        sourceEntity,
+        activityType: normalizedAct,
+        leadName,
+        startTime: start.toISOString(),
+        endTime: end.toISOString(),
+        durationMinutes: numDuration,
+        reminderId: reminder.id,
       };
-
-      const followUp = await prisma.followUp.create({
-        data: {
-          leadId: leadId || null,
-          userId: userId || null,
-          scheduledAt: start,
-          type: fuTypeMap[normalizedAct] || 'CALL',
-          status: 'PENDING',
-          notes: notes || `${normalizedAct} with ${leadName}`,
-        },
-      });
-      createdRecordId = followUp.id;
-      sourceEntity = 'FOLLOW_UP';
-
-      if (leadId) {
-        await prisma.activity.create({
-          data: {
-            leadId,
-            userId: userId || null,
-            type: 'FOLLOW_UP_SET',
-            title: `${normalizedAct} Scheduled`,
-            description: notes || `Scheduled for ${start.toLocaleString()}`,
-          },
-        });
-      }
-    } else if (normalizedAct === 'TASK') {
-      const task = await prisma.task.create({
-        data: {
-          leadId: leadId || null,
-          userId: userId || null,
-          title: notes || `Sales Task: ${leadName}`,
-          dueDate: start,
-          priority: 'HIGH',
-          status: 'PENDING',
-          description: notes,
-        },
-      });
-      createdRecordId = task.id;
-      sourceEntity = 'TASK';
-    } else {
-      // General Sales Booking / Block
-      const block = await prisma.scheduleBlock.create({
-        data: {
-          leadId: leadId || null,
-          userId: userId || null,
-          title: `${activityType}: ${leadName}`,
-          blockType: 'CALLING',
-          activityType: normalizedAct,
-          startTime: start,
-          endTime: end,
-          priority: 'HIGH',
-          status: 'ACTIVE',
-          notes: notes || `${activityType} booking`,
-          metadata: JSON.stringify({ bufferMinutes: Number(bufferMinutes) }),
-        },
-      });
-      createdRecordId = block.id;
-      sourceEntity = 'SCHEDULE_BLOCK';
-    }
-
-    // 3. Create Linked Reminder
-    const remindAt = new Date(start.getTime() - Number(reminderLeadMinutes) * 60000);
-    const reminder = await prisma.reminder.create({
-      data: {
-        userId: userId || null,
-        leadId: leadId || null,
-        title: `⏰ Reminder: ${activityType} with ${leadName}`,
-        message: notes || `${activityType} starts at ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-        remindAt: remindAt > new Date() ? remindAt : new Date(Date.now() + 60000),
-        entityId: createdRecordId,
-        entityType: 'CALENDAR_BOOKING',
-        status: 'PENDING',
-        isRead: false,
-      },
     });
 
     return NextResponse.json(
       {
         success: true,
         message: 'Sales time booked successfully.',
-        data: {
-          id: createdRecordId,
-          sourceEntity,
-          activityType: normalizedAct,
-          leadName,
-          startTime: start.toISOString(),
-          endTime: end.toISOString(),
-          durationMinutes: Number(durationMinutes),
-          reminderId: reminder.id,
-        },
+        data: result,
       },
       { status: 201 }
     );
   } catch (error: any) {
     console.error('Error in POST /api/calendar/book:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to book sales time.', details: error?.message },
+      {
+        success: false,
+        error: 'Something went wrong while saving. Nothing was created.',
+        details: error?.message,
+      },
       { status: 500 }
     );
   }
 }
+

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -8,24 +9,30 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  RefreshCw,
-  Sparkles,
   Filter,
   AlertTriangle,
+  CalendarCheck,
+  CheckCircle2,
+  PhoneCall,
+  Video,
+  RefreshCw,
+  MessageSquare,
 } from 'lucide-react';
 import { CalendarEvent, DayCapacityStats } from '@/lib/calendar/salesCalendarEngine';
-import { DayCapacityHeader } from './DayCapacityHeader';
 import { VerticalTimeline } from './VerticalTimeline';
 import { BookTimeModal } from './BookTimeModal';
 import { SlotFinderWidget } from './SlotFinderWidget';
 import { EventDetailsDrawer } from './EventDetailsDrawer';
+import { ManageScheduleModal } from './ManageScheduleModal';
 import { QuickCallLoggerModal } from '@/components/calls/QuickCallLoggerModal';
 import { QuickWhatsAppModal } from '@/components/whatsapp/QuickWhatsAppModal';
+import { cn } from '@/lib/utils';
 
 export const SalesCalendarView: React.FC = () => {
-  const [viewMode, setViewMode] = useState<'TODAY' | 'TOMORROW' | 'WEEK'>('TODAY');
+  const [viewMode, setViewMode] = useState<'TODAY' | 'WEEK'>('TODAY');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [loading, setLoading] = useState<boolean>(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [capacity, setCapacity] = useState<DayCapacityStats>({
@@ -39,13 +46,6 @@ export const SalesCalendarView: React.FC = () => {
     totalEventsCount: 0,
     completedEventsCount: 0,
     missedEventsCount: 0,
-    totalRemainingMinsToday: 420,
-    totalRemainingFormatted: '7h 0m',
-    freeRemainingMinsToday: 420,
-    freeRemainingFormatted: '7h 0m',
-    bookedRemainingMinsToday: 0,
-    bookedRemainingFormatted: '0m',
-    nextActivityFormatted: null,
   });
   const [missedEvents, setMissedEvents] = useState<CalendarEvent[]>([]);
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'ACTIVE' | 'COMPLETED' | 'MISSED'>('ALL');
@@ -53,6 +53,7 @@ export const SalesCalendarView: React.FC = () => {
   // Modals & Drawers
   const [isBookModalOpen, setIsBookModalOpen] = useState<boolean>(false);
   const [isSlotFinderOpen, setIsSlotFinderOpen] = useState<boolean>(false);
+  const [isManageModalOpen, setIsManageModalOpen] = useState<boolean>(false);
   const [activeEvent, setActiveEvent] = useState<CalendarEvent | null>(null);
 
   // Pre-filled initial parameters for Book Time Modal
@@ -67,7 +68,6 @@ export const SalesCalendarView: React.FC = () => {
 
   const fetchCalendarData = useCallback(async () => {
     try {
-      setLoading(true);
       const res = await fetch(`/api/calendar?view=${viewMode}&date=${dateString}`);
       if (res.ok) {
         const json = await res.json();
@@ -88,13 +88,23 @@ export const SalesCalendarView: React.FC = () => {
     fetchCalendarData();
   }, [fetchCalendarData]);
 
+  // Fast Date Shift
   const handleDateShift = (days: number) => {
     const next = new Date(selectedDate);
     next.setDate(next.getDate() + days);
     setSelectedDate(next);
   };
 
+  // Optimistic Mark Done Action
   const handleMarkDone = async (event: CalendarEvent) => {
+    const previousEvents = [...events];
+    setProcessingId(event.id);
+
+    // Optimistically update UI state
+    setEvents((prev) =>
+      prev.map((e) => (e.id === event.id ? { ...e, status: 'COMPLETED' } : e))
+    );
+
     try {
       const res = await fetch(`/api/calendar/${event.id}`, {
         method: 'PATCH',
@@ -106,9 +116,15 @@ export const SalesCalendarView: React.FC = () => {
       });
       if (res.ok) {
         fetchCalendarData();
+      } else {
+        // Rollback on server failure
+        setEvents(previousEvents);
       }
     } catch (err) {
       console.error('Failed to mark event done:', err);
+      setEvents(previousEvents);
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -118,7 +134,7 @@ export const SalesCalendarView: React.FC = () => {
     setIsBookModalOpen(true);
   };
 
-  // Filter events
+  // Filter events for timeline view
   const filteredEvents = events.filter((ev) => {
     if (filterStatus === 'ACTIVE') return ['SCHEDULED', 'IN_PROGRESS'].includes(ev.status);
     if (filterStatus === 'COMPLETED') return ev.status === 'COMPLETED';
@@ -127,25 +143,58 @@ export const SalesCalendarView: React.FC = () => {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 max-w-6xl mx-auto">
       {/* Top Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <CalendarIcon className="h-5 w-5 text-indigo-600" /> Dedicated Sales Calendar
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <CalendarIcon className="h-6 w-6 text-indigo-600" /> Sales Calendar
           </h1>
-          <p className="text-xs text-slate-500 font-medium">
-            Visual sales execution timeline — zero overlap, conflict-protected day planning.
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Sales appointment & activity booking timeline.
           </p>
         </div>
 
-        {/* Action CTAs */}
-        <div className="flex items-center gap-2">
+        {/* Action Controls */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* View Toggle */}
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+            <button
+              onClick={() => setViewMode('TODAY')}
+              className={cn(
+                'px-3.5 py-1.5 rounded-lg transition font-bold',
+                viewMode === 'TODAY'
+                  ? 'bg-white text-indigo-900 shadow-2xs border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              )}
+            >
+              TODAY
+            </button>
+            <button
+              onClick={() => setViewMode('WEEK')}
+              className={cn(
+                'px-3.5 py-1.5 rounded-lg transition font-bold',
+                viewMode === 'WEEK'
+                  ? 'bg-white text-indigo-900 shadow-2xs border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              )}
+            >
+              WEEK
+            </button>
+          </div>
+
           <button
             onClick={() => setIsSlotFinderOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 shadow-2xs transition-all"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition"
           >
             <Search className="h-3.5 w-3.5 text-indigo-600" /> Find Free Time
+          </button>
+
+          <button
+            onClick={() => setIsManageModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition"
+          >
+            <CalendarCheck className="h-3.5 w-3.5 text-indigo-600" /> Manage
           </button>
 
           <button
@@ -154,101 +203,73 @@ export const SalesCalendarView: React.FC = () => {
               setBookModalInitialTime(null);
               setIsBookModalOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 shadow-2xs transition-all"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 shadow-2xs transition"
           >
             <Plus className="h-4 w-4" /> BOOK TIME
           </button>
         </div>
       </div>
 
-      {/* Day Capacity Header Bar */}
-      <DayCapacityHeader capacity={capacity} missedCount={missedEvents.length} />
-
-      {/* Real-Time Next Best Action Time-Context Banner (Part 4) */}
-      {(() => {
-        const topMissed = missedEvents[0];
-        const upcomingEvent = events.find(
-          (e) => e.type !== 'LUNCH' && e.status === 'SCHEDULED' && e.startTime.getTime() >= Date.now()
-        );
-
-        let actionTitle = 'Execute High-Priority Sales Outreach';
-        let actionReason = `You have ${capacity.freeRemainingFormatted || capacity.freeFormatted} usable free time remaining today.`;
-        let targetLeadId: string | undefined = undefined;
-
-        if (topMissed) {
-          actionTitle = `Follow-up with ${topMissed.lead?.contactName || topMissed.lead?.businessName || topMissed.lead?.title || topMissed.title}`;
-          actionReason = `This activity is overdue and you have an open free time window right now.`;
-          targetLeadId = topMissed.leadId || undefined;
-        } else if (upcomingEvent) {
-          const startMins = Math.max(0, Math.round((upcomingEvent.startTime.getTime() - Date.now()) / 60000));
-          actionTitle = `Prepare for ${upcomingEvent.title}`;
-          actionReason = `Starts in ${startMins}m (${upcomingEvent.startTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}). Utilize current free time for prep.`;
-          targetLeadId = upcomingEvent.leadId || undefined;
-        }
-
-        return (
-          <div className="bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-purple-500/10 border border-amber-200/70 rounded-2xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-            <div className="flex items-start gap-3">
-              <div className="h-8 w-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-2xs">
-                <Sparkles className="h-4 w-4 fill-amber-200 text-amber-900" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md">
-                    BEST ACTION NOW
-                  </span>
-                  <span className="text-xs font-bold text-slate-900">{actionTitle}</span>
-                </div>
-                <p className="text-[11px] text-slate-600 mt-0.5 font-medium">
-                  <strong>WHY:</strong> {actionReason}
-                </p>
-              </div>
-            </div>
-
-            {targetLeadId && (
-              <button
-                onClick={() => setCallLoggerTarget({ leadId: targetLeadId })}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 shrink-0 self-start sm:self-center transition-all shadow-2xs"
-              >
-                Log Action Now
-              </button>
-            )}
+      {/* Real Sales Counters Row */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-center gap-2 overflow-x-auto">
+          {/* Calls */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50/80 border border-blue-200 text-blue-900 text-xs font-bold shrink-0">
+            <PhoneCall className="h-3.5 w-3.5 text-blue-600" />
+            <span>CALLS</span>
+            <span className="font-mono text-sm font-extrabold text-blue-700">{capacity.callsCount}</span>
           </div>
-        );
-      })()}
 
-      {/* Controls Bar: Views, Date Nav, Filters */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-3 shadow-2xs flex flex-wrap items-center justify-between gap-3">
-        {/* View Toggle */}
-        <div className="flex items-center bg-slate-100 p-1 rounded-xl">
-          {(['TODAY', 'TOMORROW', 'WEEK'] as const).map((v) => (
-            <button
-              key={v}
-              onClick={() => {
-                setViewMode(v);
-                if (v === 'TODAY') setSelectedDate(new Date());
-                if (v === 'TOMORROW') setSelectedDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
-              }}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                viewMode === v
-                  ? 'bg-white text-indigo-700 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              {v}
-            </button>
-          ))}
+          {/* Demos */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50/80 border border-purple-200 text-purple-900 text-xs font-bold shrink-0">
+            <Video className="h-3.5 w-3.5 text-purple-600" />
+            <span>DEMOS</span>
+            <span className="font-mono text-sm font-extrabold text-purple-700">{capacity.demosCount}</span>
+          </div>
+
+          {/* Follow-ups */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs font-bold shrink-0">
+            <CheckCircle2 className="h-3.5 w-3.5 text-amber-600" />
+            <span>FOLLOW-UPS</span>
+            <span className="font-mono text-sm font-extrabold text-amber-700">{capacity.followUpsCount}</span>
+          </div>
+
+          {/* Booked */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50/80 border border-indigo-200 text-indigo-900 text-xs font-bold shrink-0">
+            <CalendarIcon className="h-3.5 w-3.5 text-indigo-600" />
+            <span>BOOKED</span>
+            <span className="font-mono text-sm font-extrabold text-indigo-700">{capacity.totalEventsCount}</span>
+          </div>
         </div>
 
-        {/* Date Navigator */}
+        {/* Time stats */}
+        <div className="flex items-center gap-3 text-xs text-slate-600 font-medium shrink-0">
+          <div>
+            Booked: <strong className="text-slate-900 font-bold">{capacity.bookedFormatted}</strong>
+          </div>
+          <span className="text-slate-300">•</span>
+          <div>
+            Free: <strong className="text-slate-900 font-bold">{capacity.freeFormatted}</strong>
+          </div>
+
+          {missedEvents.length > 0 && (
+            <span className="flex items-center gap-1 text-rose-700 font-bold bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-lg text-[11px] ml-1">
+              <AlertTriangle className="h-3 w-3" /> {missedEvents.length} Overdue
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Date Shift & Filter Chips */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs">
         <div className="flex items-center gap-2">
           <button
             onClick={() => handleDateShift(-1)}
-            className="h-8 w-8 rounded-lg border border-slate-200 hover:bg-slate-50 flex items-center justify-center text-slate-600"
+            className="p-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="text-xs font-bold text-slate-800 min-w-[140px] text-center">
+          <span className="text-xs font-bold text-slate-800 font-mono">
             {selectedDate.toLocaleDateString('en-IN', {
               weekday: 'short',
               day: 'numeric',
@@ -258,24 +279,31 @@ export const SalesCalendarView: React.FC = () => {
           </span>
           <button
             onClick={() => handleDateShift(1)}
-            className="h-8 w-8 rounded-lg border border-slate-200 hover:bg-slate-50 flex items-center justify-center text-slate-600"
+            className="p-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
+          <button
+            onClick={() => setSelectedDate(new Date())}
+            className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition"
+          >
+            Today
+          </button>
         </div>
 
-        {/* Status Filter */}
-        <div className="flex items-center gap-1.5 text-xs font-semibold">
-          <Filter className="h-3.5 w-3.5 text-slate-400" />
+        {/* Status Filters */}
+        <div className="flex items-center gap-1 text-xs">
+          <Filter className="h-3.5 w-3.5 text-slate-400 mr-1" />
           {(['ALL', 'ACTIVE', 'COMPLETED', 'MISSED'] as const).map((st) => (
             <button
               key={st}
               onClick={() => setFilterStatus(st)}
-              className={`px-2.5 py-1 rounded-md transition-all ${
+              className={cn(
+                'px-2.5 py-1 rounded-lg font-bold text-[11px] transition',
                 filterStatus === st
-                  ? 'bg-slate-900 text-white font-bold'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
+                  ? 'bg-indigo-600 text-white shadow-2xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              )}
             >
               {st}
             </button>
@@ -283,29 +311,38 @@ export const SalesCalendarView: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Vertical Timeline Content */}
-      {loading ? (
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center text-xs text-slate-400">
-          Loading sales calendar events...
-        </div>
-      ) : (
-        <VerticalTimeline
-          events={filteredEvents}
-          viewMode={viewMode}
-          onOpenDetails={(ev) => setActiveEvent(ev)}
+      {/* Visual Timeline */}
+      <VerticalTimeline
+        events={filteredEvents}
+        viewMode={viewMode}
+        onOpenDetails={(ev: CalendarEvent) => setActiveEvent(ev)}
+        onMarkDone={handleMarkDone}
+        onTriggerCall={(_phone?: string | null, leadId?: string | null) => setCallLoggerTarget({ leadId })}
+        onTriggerWhatsApp={(_phone?: string | null, leadId?: string | null) => setWhatsAppTarget({ leadId })}
+      />
+
+      {/* Drawers & Modals */}
+      {activeEvent && (
+        <EventDetailsDrawer
+          event={activeEvent}
+          onClose={() => setActiveEvent(null)}
           onMarkDone={handleMarkDone}
-          onTriggerCall={(phone, leadId) => setCallLoggerTarget({ leadId })}
-          onTriggerWhatsApp={(phone, leadId) => setWhatsAppTarget({ leadId })}
+          onRescheduleSuccess={fetchCalendarData}
+          onTriggerCall={(_phone?: string | null, leadId?: string | null) => setCallLoggerTarget({ leadId })}
+          onTriggerWhatsApp={(_phone?: string | null, leadId?: string | null) => setWhatsAppTarget({ leadId })}
         />
       )}
 
-      {/* Modals & Drawers */}
       <BookTimeModal
         isOpen={isBookModalOpen}
         onClose={() => setIsBookModalOpen(false)}
         onSuccess={fetchCalendarData}
         initialTime={bookModalInitialTime}
         initialDate={bookModalInitialDate}
+        onOpenSlotFinder={() => {
+          setIsBookModalOpen(false);
+          setIsSlotFinderOpen(true);
+        }}
       />
 
       <SlotFinderWidget
@@ -314,27 +351,28 @@ export const SalesCalendarView: React.FC = () => {
         onSelectSlot={handleSelectSlotFromFinder}
       />
 
-      <EventDetailsDrawer
-        event={activeEvent}
-        onClose={() => setActiveEvent(null)}
-        onMarkDone={handleMarkDone}
-        onRescheduleSuccess={fetchCalendarData}
-        onTriggerCall={(phone, leadId) => setCallLoggerTarget({ leadId })}
-        onTriggerWhatsApp={(phone, leadId) => setWhatsAppTarget({ leadId })}
+      <ManageScheduleModal
+        isOpen={isManageModalOpen}
+        onClose={() => setIsManageModalOpen(false)}
+        events={events}
+        onRefresh={fetchCalendarData}
+        onOpenEventDetails={(ev: CalendarEvent) => setActiveEvent(ev)}
+        onOpenCallLogger={(leadId?: string | null) => setCallLoggerTarget({ leadId })}
+        onOpenWhatsApp={(leadId?: string | null) => setWhatsAppTarget({ leadId })}
       />
 
       {callLoggerTarget && (
         <QuickCallLoggerModal
-          isOpen={Boolean(callLoggerTarget)}
+          isOpen={!!callLoggerTarget}
           onClose={() => setCallLoggerTarget(null)}
-          onSuccess={fetchCalendarData}
           leadId={callLoggerTarget.leadId || undefined}
+          onSuccess={fetchCalendarData}
         />
       )}
 
-      {whatsAppTarget?.leadId && (
+      {whatsAppTarget && whatsAppTarget.leadId && (
         <QuickWhatsAppModal
-          isOpen={Boolean(whatsAppTarget)}
+          isOpen={!!whatsAppTarget}
           onClose={() => setWhatsAppTarget(null)}
           leadId={whatsAppTarget.leadId}
         />

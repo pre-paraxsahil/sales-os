@@ -186,8 +186,9 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     }
 
     if (action === 'SNOOZE') {
-      // Snooze reminder for 15 mins
-      const snoozeUntil = new Date(Date.now() + 15 * 60000);
+      // Snooze reminder for requested minutes or default 15 mins
+      const snoozeMins = Number(body.snoozeMinutes || 15);
+      const snoozeUntil = new Date(Date.now() + snoozeMins * 60000);
       await prisma.reminder.updateMany({
         where: { entityId: rawId },
         data: { snoozedUntil: snoozeUntil, status: 'SNOOZED' },
@@ -195,7 +196,60 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
       return NextResponse.json({
         success: true,
-        message: 'Snoozed for 15 minutes.',
+        message: `Snoozed for ${snoozeMins} minutes.`,
+      });
+    }
+
+    if (action === 'CHANGE_REMINDER') {
+      const reminderLeadMins = Number(body.reminderLeadMinutes || 10);
+      let targetStartTime: Date | null = null;
+
+      if (sourceEntity === 'DEMO') {
+        const demo = await prisma.demo.findUnique({ where: { id: rawId } });
+        if (demo) targetStartTime = demo.scheduledAt;
+      } else if (sourceEntity === 'FOLLOW_UP') {
+        const fu = await prisma.followUp.findUnique({ where: { id: rawId } });
+        if (fu) targetStartTime = fu.scheduledAt;
+      } else if (sourceEntity === 'TASK') {
+        const t = await prisma.task.findUnique({ where: { id: rawId } });
+        if (t) targetStartTime = t.dueDate;
+      } else {
+        const sb = await prisma.scheduleBlock.findUnique({ where: { id: rawId } });
+        if (sb) targetStartTime = sb.startTime;
+      }
+
+      const baseTime = targetStartTime || new Date();
+      const remindAt = new Date(baseTime.getTime() - reminderLeadMins * 60000);
+
+      await prisma.reminder.updateMany({
+        where: { entityId: rawId },
+        data: {
+          remindAt: remindAt > new Date() ? remindAt : new Date(Date.now() + 60000),
+          status: 'PENDING',
+          isRead: false,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Reminder updated to ${reminderLeadMins} mins prior.`,
+      });
+    }
+
+    if (action === 'EDIT_NOTES') {
+      if (sourceEntity === 'DEMO') {
+        await prisma.demo.update({ where: { id: rawId }, data: { notes: notes || null } });
+      } else if (sourceEntity === 'FOLLOW_UP') {
+        await prisma.followUp.update({ where: { id: rawId }, data: { notes: notes || null } });
+      } else if (sourceEntity === 'TASK') {
+        await prisma.task.update({ where: { id: rawId }, data: { description: notes || null } });
+      } else {
+        await prisma.scheduleBlock.update({ where: { id: rawId }, data: { notes: notes || null } });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Notes updated.',
       });
     }
 

@@ -13,14 +13,12 @@ import {
   Video,
   RefreshCw,
   MessageSquare,
-  Flame,
   FileText,
-  Package,
-  CheckSquare,
   Sparkles,
   ArrowRight,
   ArrowLeft,
   ShieldAlert,
+  Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,35 +30,22 @@ interface LeadOption {
   phone?: string | null;
 }
 
-interface SuggestedSlot {
-  startTime: string;
-  endTime: string;
-  formattedTime: string;
-  formattedRange: string;
-}
-
 interface BookTimeModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
   initialTime?: string | null;
   initialDate?: string | null;
+  onOpenSlotFinder?: () => void;
 }
 
-const PRIMARY_ACTIVITIES = [
-  { id: 'CALL', label: 'Call', icon: PhoneCall, color: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
-  { id: 'DEMO', label: 'Demo', icon: Video, color: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100' },
-  { id: 'CALLBACK', label: 'Callback', icon: RefreshCw, color: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' },
-  { id: 'SEND_DETAILS', label: 'Send Details', icon: MessageSquare, color: 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100' },
-  { id: 'FOLLOW_UP', label: 'Follow-up', icon: CheckCircle2, color: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' },
-];
-
-const MORE_ACTIVITIES = [
-  { id: 'CLOSING', label: 'Closing Call', icon: Flame, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  { id: 'QUOTATION', label: 'Quotation', icon: FileText, color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  { id: 'SAMPLE', label: 'Sample', icon: Package, color: 'bg-sky-50 text-sky-700 border-sky-200' },
-  { id: 'WHATSAPP', label: 'WhatsApp', icon: MessageSquare, color: 'bg-emerald-50 text-emerald-800 border-emerald-300' },
-  { id: 'TASK', label: 'Task', icon: CheckSquare, color: 'bg-slate-50 text-slate-700 border-slate-200' },
+const ACTIVITIES = [
+  { id: 'CALL', label: 'Call', icon: PhoneCall, color: 'bg-blue-50 text-blue-700 border-blue-200' },
+  { id: 'CALLBACK', label: 'Callback', icon: RefreshCw, color: 'bg-orange-50 text-orange-700 border-orange-200' },
+  { id: 'DEMO', label: 'Demo', icon: Video, color: 'bg-purple-50 text-purple-700 border-purple-200' },
+  { id: 'FOLLOW_UP', label: 'Follow-up', icon: CheckCircle2, color: 'bg-amber-50 text-amber-700 border-amber-200' },
+  { id: 'SEND_DETAILS', label: 'Send Details', icon: MessageSquare, color: 'bg-teal-50 text-teal-700 border-teal-200' },
+  { id: 'OTHER', label: 'Other', icon: FileText, color: 'bg-slate-50 text-slate-700 border-slate-200' },
 ];
 
 export const BookTimeModal: React.FC<BookTimeModalProps> = ({
@@ -69,12 +54,12 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
   onSuccess,
   initialTime,
   initialDate,
+  onOpenSlotFinder,
 }) => {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
 
   // Form State
   const [activityType, setActivityType] = useState<string>('CALL');
-  const [showMoreActivities, setShowMoreActivities] = useState<boolean>(false);
   const [selectedLead, setSelectedLead] = useState<LeadOption | null>(null);
   const [leadSearchQuery, setLeadSearchQuery] = useState<string>('');
   const [leadSearchResults, setLeadSearchResults] = useState<LeadOption[]>([]);
@@ -85,14 +70,13 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
   );
   const [timeString, setTimeString] = useState<string>(initialTime || '11:00');
   const [durationMinutes, setDurationMinutes] = useState<number>(30);
-  const [bufferMinutes, setBufferMinutes] = useState<number>(10);
+  const [reminderLeadMinutes, setReminderLeadMinutes] = useState<number>(10);
   const [notes, setNotes] = useState<string>('');
 
   // Conflict / Loading State
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [conflictError, setConflictError] = useState<string | null>(null);
-  const [conflictingEventInfo, setConflictingEventInfo] = useState<any>(null);
-  const [suggestedSlots, setSuggestedSlots] = useState<SuggestedSlot[]>([]);
+  const [conflictingTimeRange, setConflictingTimeRange] = useState<string | null>(null);
 
   // Reset modal state on open
   useEffect(() => {
@@ -103,11 +87,10 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
       setDateString(initialDate || new Date().toISOString().split('T')[0]);
       setTimeString(initialTime || '11:00');
       setDurationMinutes(30);
-      setBufferMinutes(10);
+      setReminderLeadMinutes(10);
       setNotes('');
       setConflictError(null);
-      setConflictingEventInfo(null);
-      setSuggestedSlots([]);
+      setConflictingTimeRange(null);
     }
   }, [isOpen, initialDate, initialTime]);
 
@@ -137,23 +120,12 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSelectSuggestedSlot = (slot: SuggestedSlot) => {
-    const slotDate = new Date(slot.startTime);
-    const h = String(slotDate.getHours()).padStart(2, '0');
-    const m = String(slotDate.getMinutes()).padStart(2, '0');
-    setTimeString(`${h}:${m}`);
-    setConflictError(null);
-    setConflictingEventInfo(null);
-    setSuggestedSlots([]);
-  };
-
   const handleBook = async () => {
     try {
       setSubmitting(true);
       setConflictError(null);
-      setConflictingEventInfo(null);
+      setConflictingTimeRange(null);
 
-      // Construct ISO start date string
       const [y, mon, d] = dateString.split('-').map((v) => parseInt(v, 10));
       const [h, m] = timeString.split(':').map((v) => parseInt(v, 10));
       const startObj = new Date(y, mon - 1, d, h, m, 0, 0);
@@ -163,7 +135,7 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
         leadId: selectedLead?.id || null,
         startTime: startObj.toISOString(),
         durationMinutes,
-        bufferMinutes,
+        reminderLeadMinutes,
         notes,
       };
 
@@ -177,9 +149,13 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
 
       if (!res.ok || !json.success) {
         if (json.conflict) {
-          setConflictError(json.error || 'That time is already booked.');
-          setConflictingEventInfo(json.conflict.conflictingEvent);
-          setSuggestedSlots(json.conflict.suggestedSlots || []);
+          const conflictRange = json.conflict.conflictingEvent?.timeRange;
+          setConflictError(
+            conflictRange
+              ? `You're already booked from ${conflictRange}.`
+              : json.error || 'That slot is already booked.'
+          );
+          setConflictingTimeRange(conflictRange || null);
         } else {
           setConflictError(json.error || 'Failed to create booking.');
         }
@@ -191,7 +167,7 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
     } catch (err: any) {
       console.error('Error submitting booking:', err);
       setConflictError(err.message || 'Server connection error.');
-    } finally {
+    } fontally: {
       setSubmitting(false);
     }
   };
@@ -206,12 +182,13 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
               +
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Book Time</h3>
+              <h3 className="text-sm font-bold text-slate-900">Book Sales Time</h3>
               <p className="text-[11px] text-slate-500 font-medium">
-                Step {step} of 4 — {step === 1 && 'What are you doing?'}
-                {step === 2 && 'Who is it with?'}
-                {step === 3 && 'When & Duration'}
-                {step === 4 && 'Confirm Booking'}
+                Step {step} of 5 — {step === 1 && 'What?'}
+                {step === 2 && 'Who?'}
+                {step === 3 && 'When?'}
+                {step === 4 && 'Reminder'}
+                {step === 5 && 'Book'}
               </p>
             </div>
           </div>
@@ -223,30 +200,27 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
           </button>
         </div>
 
-        {/* Step Indicator Bar */}
+        {/* Step Progress Bar */}
         <div className="flex border-b border-slate-100 bg-slate-50/30">
-          {[1, 2, 3, 4].map((s) => (
+          {[1, 2, 3, 4, 5].map((s) => (
             <div
               key={s}
-              className={cn(
-                'flex-1 h-1 transition-all',
-                s <= step ? 'bg-indigo-600' : 'bg-slate-200'
-              )}
+              className={cn('flex-1 h-1 transition-all', s <= step ? 'bg-indigo-600' : 'bg-slate-200')}
             />
           ))}
         </div>
 
         {/* Modal Body */}
         <div className="p-5 flex-1 overflow-y-auto max-h-[70vh] space-y-4">
-          {/* STEP 1: ACTIVITY SELECTION */}
+          {/* STEP 1: WHAT? */}
           {step === 1 && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Primary Sales Activities
+                Step 1: What activity are you booking?
               </label>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                {PRIMARY_ACTIVITIES.map((act) => {
+                {ACTIVITIES.map((act) => {
                   const Icon = act.icon;
                   const isSelected = activityType === act.id;
                   return (
@@ -265,51 +239,16 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
                   );
                 })}
               </div>
-
-              {/* Toggle More Options */}
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowMoreActivities(!showMoreActivities)}
-                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1"
-                >
-                  {showMoreActivities ? '– Hide More Options' : '+ More Activity Choices'}
-                </button>
-              </div>
-
-              {showMoreActivities && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1 animate-in fade-in duration-150">
-                  {MORE_ACTIVITIES.map((act) => {
-                    const Icon = act.icon;
-                    const isSelected = activityType === act.id;
-                    return (
-                      <button
-                        key={act.id}
-                        onClick={() => setActivityType(act.id)}
-                        className={cn(
-                          'flex flex-col items-center justify-center p-3 rounded-xl border font-bold text-xs transition-all gap-1.5',
-                          act.color,
-                          isSelected && 'ring-2 ring-indigo-600 ring-offset-1 border-indigo-600 shadow-2xs'
-                        )}
-                      >
-                        <Icon className="h-4 w-4 shrink-0" />
-                        <span>{act.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           )}
 
-          {/* STEP 2: LEAD SELECTION */}
+          {/* STEP 2: WHO? */}
           {step === 2 && (
             <div className="space-y-3">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Select Lead / Customer
+                Step 2: Who is this booking with?
               </label>
 
-              {/* Selected Lead Box */}
               {selectedLead ? (
                 <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -320,7 +259,7 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
                       <div className="text-xs font-bold text-slate-900">
                         {selectedLead.contactName || selectedLead.businessName || selectedLead.title}
                       </div>
-                      <div className="text-[11px] text-slate-500">
+                      <div className="text-[11px] text-slate-500 font-mono">
                         {selectedLead.businessName || selectedLead.phone || 'Lead'}
                       </div>
                     </div>
@@ -340,13 +279,13 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
                       type="text"
                       value={leadSearchQuery}
                       onChange={(e) => setLeadSearchQuery(e.target.value)}
-                      placeholder="Type name, business, or phone number..."
+                      placeholder="Search lead name, business, or phone..."
                       className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
 
                   {searchingLeads && (
-                    <div className="text-xs text-slate-400 p-2 text-center">Searching database...</div>
+                    <div className="text-xs text-slate-400 p-2 text-center">Searching leads...</div>
                   )}
 
                   <div className="max-h-48 overflow-y-auto space-y-1">
@@ -360,7 +299,7 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
                           {lead.contactName || lead.businessName || lead.title}
                         </span>
                         <span className="text-[11px] text-slate-500 font-mono">
-                          {lead.businessName || lead.phone || ''}
+                          {lead.phone || lead.businessName || ''}
                         </span>
                       </button>
                     ))}
@@ -371,7 +310,7 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
                       onClick={() => setSelectedLead(null)}
                       className="text-xs font-semibold text-slate-500 hover:text-slate-700 underline"
                     >
-                      Skip Lead (Internal / Custom Block)
+                      Skip Lead (General Activity)
                     </button>
                   </div>
                 </div>
@@ -379,9 +318,13 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
             </div>
           )}
 
-          {/* STEP 3: WHEN & DURATION */}
+          {/* STEP 3: WHEN? */}
           {step === 3 && (
             <div className="space-y-4">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                Step 3: Select Date, Time & Duration
+              </label>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">Date</label>
@@ -425,42 +368,61 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Buffer Time</label>
-                <div className="flex items-center gap-2">
-                  {[0, 5, 10, 15].map((b) => (
-                    <button
-                      key={b}
-                      type="button"
-                      onClick={() => setBufferMinutes(b)}
-                      className={cn(
-                        'flex-1 py-1.5 text-xs font-semibold rounded-xl border transition-all',
-                        bufferMinutes === b
-                          ? 'bg-slate-900 text-white border-slate-900'
-                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                      )}
-                    >
-                      {b === 0 ? 'No buffer' : `${b} min`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">Notes / Purpose</label>
                 <input
                   type="text"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="e.g. Call back to discuss pricing quotation..."
+                  placeholder="Optional notes or call topic..."
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
             </div>
           )}
 
-          {/* STEP 4: CONFIRMATION & CONFLICT WARNING */}
+          {/* STEP 4: REMINDER */}
           {step === 4 && (
             <div className="space-y-4">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                Step 4: Set Reminder Notification
+              </label>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-2">Remind me before start:</label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {[
+                    { m: 5, label: '5 minutes prior' },
+                    { m: 10, label: '10 minutes prior' },
+                    { m: 15, label: '15 minutes prior' },
+                    { m: 30, label: '30 minutes prior' },
+                  ].map((rem) => (
+                    <button
+                      key={rem.m}
+                      type="button"
+                      onClick={() => setReminderLeadMinutes(rem.m)}
+                      className={cn(
+                        'p-3 rounded-xl border font-bold text-xs flex items-center justify-between transition-all',
+                        reminderLeadMinutes === rem.m
+                          ? 'bg-indigo-50 text-indigo-700 border-indigo-600 ring-2 ring-indigo-600/20'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      )}
+                    >
+                      <span>{rem.label}</span>
+                      <Bell className="h-4 w-4 text-indigo-600" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 5: BOOK CONFIRMATION */}
+          {step === 5 && (
+            <div className="space-y-4">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                Step 5: Confirm Booking Details
+              </label>
+
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-xs">
                 <div className="flex justify-between border-b border-slate-200/80 pb-2">
                   <span className="text-slate-500">Activity:</span>
@@ -479,46 +441,32 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Buffer Window:</span>
-                  <span className="font-semibold text-slate-700">{bufferMinutes} mins after</span>
+                  <span className="text-slate-500">Reminder:</span>
+                  <span className="font-semibold text-slate-700">{reminderLeadMinutes} mins before</span>
                 </div>
               </div>
 
-              {/* Smart Conflict Warning Box */}
+              {/* Conflict Error Box */}
               {conflictError && (
-                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl space-y-3 animate-in fade-in duration-150">
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl space-y-3 animate-in fade-in duration-150">
                   <div className="flex items-start gap-2.5 text-rose-800">
                     <ShieldAlert className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
                     <div>
                       <div className="text-xs font-bold">{conflictError}</div>
-                      {conflictingEventInfo && (
-                        <div className="text-[11px] text-rose-700 mt-1">
-                          <strong>CURRENT BOOKING:</strong> {conflictingEventInfo.timeRange} —{' '}
-                          {conflictingEventInfo.title}
-                        </div>
-                      )}
+                      <p className="text-[11px] text-rose-700 mt-0.5">
+                        Please choose a different time slot or use Find Free Time.
+                      </p>
                     </div>
                   </div>
 
-                  {/* Suggested Slots */}
-                  {suggestedSlots.length > 0 && (
-                    <div className="pt-2 border-t border-rose-200">
-                      <div className="text-[11px] font-bold text-rose-900 mb-1.5">
-                        Suggested available slots:
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {suggestedSlots.map((slot, idx) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => handleSelectSuggestedSlot(slot)}
-                            className="px-3 py-1.5 rounded-lg bg-white border border-rose-300 text-rose-900 font-bold text-xs hover:bg-rose-100 shadow-2xs transition-all"
-                          >
-                            {slot.formattedTime}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                  {onOpenSlotFinder && (
+                    <button
+                      type="button"
+                      onClick={onOpenSlotFinder}
+                      className="w-full py-2 px-3 rounded-lg bg-rose-600 text-white font-bold text-xs hover:bg-rose-700 transition shadow-2xs"
+                    >
+                      Find Free Time →
+                    </button>
                   )}
                 </div>
               )}
@@ -539,7 +487,7 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
             <div />
           )}
 
-          {step < 4 ? (
+          {step < 5 ? (
             <button
               onClick={() => setStep((s) => (s + 1) as any)}
               className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 shadow-2xs transition-all"
@@ -552,7 +500,7 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
               disabled={submitting}
               className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs transition-all disabled:opacity-50"
             >
-              {submitting ? 'Checking & Booking...' : 'Confirm Book Time'}
+              {submitting ? 'Booking...' : 'BOOK'}
             </button>
           )}
         </div>

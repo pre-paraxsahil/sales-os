@@ -1,9 +1,9 @@
 import { getWorkHoursConfig } from '@/lib/schedule/scheduleConfig';
-import { getLocalTimeParts, DEFAULT_TIMEZONE } from '@/lib/time/salesTimeEngine';
+import { getLocalTimeParts, parseSalesDate, makeISTDate, DEFAULT_TIMEZONE, formatISTDateDDMMYYYY } from '@/lib/time/salesTimeEngine';
 import { getUnifiedCalendarEvents } from './salesCalendarEngine';
 
 export interface FindFreeTimeParams {
-  dateString: string; // YYYY-MM-DD in Asia/Kolkata
+  dateString: string; // YYYY-MM-DD, DD/MM/YYYY, or relative
   durationMinutes: number;
   bufferMinutes?: number;
   activityType?: string;
@@ -13,8 +13,16 @@ export interface FindFreeTimeParams {
 export interface AvailableTimeSlot {
   startTimeIso: string;
   endTimeIso: string;
-  formattedTime: string; // e.g. "02:30 PM"
-  formattedRange: string; // e.g. "02:30 PM – 03:00 PM"
+  formattedTime: string; // e.g. "04:30 PM"
+  formattedRange: string; // e.g. "04:30 PM – 05:00 PM"
+}
+
+export interface FindFreeTimeResult {
+  isWorkingDay: boolean;
+  dateLabel: string;
+  dateFormatted: string; // "DD/MM/YYYY"
+  slots: AvailableTimeSlot[];
+  reason?: string;
 }
 
 /**
@@ -25,14 +33,14 @@ export async function findFreeTimeSlots({
   durationMinutes,
   bufferMinutes = 0,
   userId,
-}: FindFreeTimeParams): Promise<{ isWorkingDay: boolean; dateLabel: string; slots: AvailableTimeSlot[] }> {
+}: FindFreeTimeParams): Promise<FindFreeTimeResult> {
   const config = await getWorkHoursConfig(userId);
   const tz = config.timezone || DEFAULT_TIMEZONE;
 
-  const [y, m, d] = dateString.split('-').map((v) => parseInt(v, 10));
-  const targetDate = new Date(y, m - 1, d, 0, 0, 0, 0);
-
+  const targetDate = parseSalesDate(dateString, '00:00', tz);
   const parts = getLocalTimeParts(targetDate, tz);
+  const dayStart = makeISTDate(parts.year, parts.month, parts.day, 0, 0, 0);
+  const dayEnd = makeISTDate(parts.year, parts.month, parts.day, 23, 59, 59);
 
   // Check weekly off day
   const weeklyOffDays = config.weeklyOffDays || [0];
@@ -40,12 +48,12 @@ export async function findFreeTimeSlots({
     return {
       isWorkingDay: false,
       dateLabel: parts.displayDate,
+      dateFormatted: formatISTDateDDMMYYYY(dayStart),
       slots: [],
+      reason: `${parts.dayName} is a weekly off day. Office is closed.`,
     };
   }
 
-  const dayStart = new Date(parts.year, parts.month - 1, parts.day, 0, 0, 0, 0);
-  const dayEnd = new Date(parts.year, parts.month - 1, parts.day, 23, 59, 59, 999);
   const existingEvents = await getUnifiedCalendarEvents(dayStart, dayEnd, userId);
 
   const officeStartHour = config.startHour;
@@ -53,33 +61,38 @@ export async function findFreeTimeSlots({
   const officeEndHour = config.endHour;
   const officeEndMinute = config.endMinute || 0;
 
-  const lunchStartMins = (config.lunch?.startHour ?? 14) * 60 + (config.lunch?.startMinute ?? 0);
-  const lunchEndMins = (config.lunch?.endHour ?? 15) * 60 + (config.lunch?.endMinute ?? 0);
-
   const totalRequiredMins = durationMinutes + bufferMinutes;
-
   const slots: AvailableTimeSlot[] = [];
 
-  // Pointer starting at office opening
-  let current = new Date(parts.year, parts.month - 1, parts.day, officeStartHour, officeStartMinute, 0, 0);
-  const officeEnd = new Date(parts.year, parts.month - 1, parts.day, officeEndHour, officeEndMinute, 0, 0);
+  // Pointer starting at office opening in IST
+  let current = makeISTDate(parts.year, parts.month, parts.day, officeStartHour, officeStartMinute, 0);
+  const officeEnd = makeISTDate(parts.year, parts.month, parts.day, officeEndHour, officeEndMinute, 0);
+
+  const lunchStart = makeISTDate(parts.year, parts.month, parts.day, config.lunch?.startHour ?? 14, config.lunch?.startMinute ?? 0, 0);
+  const lunchEnd = makeISTDate(parts.year, parts.month, parts.day, config.lunch?.endHour ?? 15, config.lunch?.endMinute ?? 0, 0);
 
   const now = new Date();
+  let pastSlotsSkipped = 0;
+  let lunchOverlapCount = 0;
+  let occupiedOverlapCount = 0;
+
+  // Clean slot step: 30 minutes for 30m+ bookings, 15 minutes for shorter
+  const stepMinutes = durationMinutes >= 30 ? 30 : 15;
 
   while (current.getTime() + totalRequiredMins * 60000 <= officeEnd.getTime()) {
-    // Skip times in the past if searching for today
+    // Skip times in the past if searching for today or a past date
     if (current.getTime() < now.getTime()) {
-      current = new Date(current.getTime() + 15 * 60000);
+      pastSlotsSkipped++;
+      current = new Date(current.getTime() + stepMinutes * 60000);
       continue;
     }
 
-    const curParts = getLocalTimeParts(current, tz);
-    const startMins = curParts.hour * 60 + curParts.minute;
-    const endMins = startMins + totalRequiredMins;
+    const candEnd = new Date(current.getTime() + totalRequiredMins * 60000);
 
-    // Check lunch window overlap
-    if (startMins < lunchEndMins && endMins > lunchStartMins) {
-      current = new Date(parts.year, parts.month - 1, parts.day, config.lunch?.endHour ?? 15, config.lunch?.endMinute ?? 0, 0, 0);
+    // Check lunch window overlap: max(current, lunchStart) < min(candEnd, lunchEnd)
+    if (Math.max(current.getTime(), lunchStart.getTime()) < Math.min(candEnd.getTime(), lunchEnd.getTime())) {
+      lunchOverlapCount++;
+      current = new Date(lunchEnd.getTime());
       continue;
     }
 
@@ -88,13 +101,13 @@ export async function findFreeTimeSlots({
     let maxOverlapEnd = current.getTime();
 
     for (const ev of existingEvents) {
-      if (['CANCELLED', 'MISSED'].includes(ev.status)) continue;
+      if (['CANCELLED', 'MISSED', 'COMPLETED'].includes(ev.status)) continue;
       const evStart = new Date(ev.startTime).getTime();
       const evTotalEnd = new Date(ev.endTime.getTime() + (ev.bufferMinutes || 0) * 60000).getTime();
-      const candEnd = current.getTime() + totalRequiredMins * 60000;
 
-      if (Math.max(current.getTime(), evStart) < Math.min(candEnd, evTotalEnd)) {
+      if (Math.max(current.getTime(), evStart) < Math.min(candEnd.getTime(), evTotalEnd)) {
         hasOverlap = true;
+        occupiedOverlapCount++;
         if (evTotalEnd > maxOverlapEnd) {
           maxOverlapEnd = evTotalEnd;
         }
@@ -102,19 +115,20 @@ export async function findFreeTimeSlots({
     }
 
     if (hasOverlap) {
-      // Jump pointer to end of conflicting event rounded to next 10 mins
+      // Jump pointer to end of conflicting event rounded up to next 15-min mark in IST
       current = new Date(maxOverlapEnd);
-      const rem = current.getMinutes() % 10;
+      const curParts = getLocalTimeParts(current, tz);
+      const rem = curParts.minute % 15;
       if (rem > 0) {
-        current.setMinutes(current.getMinutes() + (10 - rem), 0, 0);
+        current = new Date(current.getTime() + (15 - rem) * 60000);
       }
       continue;
     }
 
     // Free slot found!
     const slotEnd = new Date(current.getTime() + durationMinutes * 60000);
-    const formatTime = (d: Date) =>
-      d.toLocaleTimeString('en-IN', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: true });
+    const formatTime = (dt: Date) =>
+      dt.toLocaleTimeString('en-IN', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true });
 
     slots.push({
       startTimeIso: current.toISOString(),
@@ -123,13 +137,26 @@ export async function findFreeTimeSlots({
       formattedRange: `${formatTime(current)} – ${formatTime(slotEnd)}`,
     });
 
-    // Advance pointer by 20 minutes for next candidate slot
-    current = new Date(current.getTime() + 20 * 60000);
+    // Advance pointer cleanly
+    current = new Date(current.getTime() + stepMinutes * 60000);
+  }
+
+  let reason: string | undefined = undefined;
+  if (slots.length === 0) {
+    if (pastSlotsSkipped > 0 && current >= officeEnd) {
+      reason = `Working hours for this date have already passed.`;
+    } else if (occupiedOverlapCount > 0) {
+      reason = `All available slots during working hours are occupied by scheduled commitments.`;
+    } else {
+      reason = `No slots available during working hours (${config.startHour}:00 – ${config.endHour}:00).`;
+    }
   }
 
   return {
     isWorkingDay: true,
     dateLabel: parts.displayDate,
+    dateFormatted: formatISTDateDDMMYYYY(dayStart),
     slots,
+    reason,
   };
 }

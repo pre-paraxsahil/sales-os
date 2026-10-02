@@ -27,6 +27,7 @@ import { ManageScheduleModal } from './ManageScheduleModal';
 import { QuickCallLoggerModal } from '@/components/calls/QuickCallLoggerModal';
 import { QuickWhatsAppModal } from '@/components/whatsapp/QuickWhatsAppModal';
 import { cn } from '@/lib/utils';
+import { getTodayDateString, formatISTDateDDMMYYYY, formatRelativeTimeUntil, formatISTDate } from '@/lib/time/salesTimeEngine';
 
 export const SalesCalendarView: React.FC = () => {
   const [viewMode, setViewMode] = useState<'TODAY' | 'WEEK'>('TODAY');
@@ -64,7 +65,7 @@ export const SalesCalendarView: React.FC = () => {
   const [callLoggerTarget, setCallLoggerTarget] = useState<{ leadId?: string | null } | null>(null);
   const [whatsAppTarget, setWhatsAppTarget] = useState<{ leadId?: string | null } | null>(null);
 
-  const dateString = selectedDate.toISOString().split('T')[0];
+  const dateString = getTodayDateString(selectedDate);
 
   const fetchCalendarData = useCallback(async () => {
     try {
@@ -90,8 +91,7 @@ export const SalesCalendarView: React.FC = () => {
 
   // Fast Date Shift
   const handleDateShift = (days: number) => {
-    const next = new Date(selectedDate);
-    next.setDate(next.getDate() + days);
+    const next = new Date(selectedDate.getTime() + days * 24 * 60 * 60 * 1000);
     setSelectedDate(next);
   };
 
@@ -266,20 +266,25 @@ export const SalesCalendarView: React.FC = () => {
           <button
             onClick={() => handleDateShift(-1)}
             className="p-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition"
+            title="Previous Day"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="text-xs font-bold text-slate-800 font-mono">
-            {selectedDate.toLocaleDateString('en-IN', {
-              weekday: 'short',
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-            })}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-bold text-slate-900 font-mono">
+              {formatISTDateDDMMYYYY(selectedDate)}
+            </span>
+            <span className="text-[11px] text-slate-500 font-medium">
+              ({formatISTDate(selectedDate).split(',')[0]})
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+              {formatRelativeTimeUntil(selectedDate)}
+            </span>
+          </div>
           <button
             onClick={() => handleDateShift(1)}
             className="p-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition"
+            title="Next Day"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -288,6 +293,12 @@ export const SalesCalendarView: React.FC = () => {
             className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition"
           >
             Today
+          </button>
+          <button
+            onClick={() => setSelectedDate(new Date(Date.now() + 24 * 60 * 60 * 1000))}
+            className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition"
+          >
+            Tomorrow
           </button>
         </div>
 

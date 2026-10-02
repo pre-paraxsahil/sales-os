@@ -1,5 +1,5 @@
 import { getWorkHoursConfig } from '@/lib/schedule/scheduleConfig';
-import { getLocalTimeParts, getStartAndEndOfDay, DEFAULT_TIMEZONE } from '@/lib/time/salesTimeEngine';
+import { getLocalTimeParts, getStartAndEndOfDay, makeISTDate, DEFAULT_TIMEZONE } from '@/lib/time/salesTimeEngine';
 import { getUnifiedCalendarEvents, CalendarEvent } from './salesCalendarEngine';
 
 export interface ConflictCheckParams {
@@ -101,7 +101,7 @@ export async function checkTimeConflicts({
     if (excludeEntityId && (ev.entityId === excludeEntityId || ev.id.endsWith(excludeEntityId))) {
       continue;
     }
-    if (['CANCELLED', 'MISSED'].includes(ev.status)) {
+    if (['CANCELLED', 'MISSED', 'COMPLETED'].includes(ev.status)) {
       continue;
     }
 
@@ -112,14 +112,15 @@ export async function checkTimeConflicts({
     // Check overlap: max(reqStart, evStart) < min(reqTotalEnd, evTotalEnd)
     if (Math.max(reqStart.getTime(), evStart.getTime()) < Math.min(reqTotalEnd.getTime(), evTotalEnd.getTime())) {
       const formatTime = (d: Date) =>
-        d.toLocaleTimeString('en-IN', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: true });
+        d.toLocaleTimeString('en-IN', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true });
 
       const suggestedSlots = await findNextAvailableSlots(reqStart, durationMinutes, bufferMinutes, userId, 3);
+      const evRangeStr = `${formatTime(ev.startTime)} to ${formatTime(ev.endTime)}`;
 
       return {
         hasConflict: true,
         reason: 'EVENT_OVERLAP',
-        message: 'That time is already booked.',
+        message: `This time is already booked from ${evRangeStr}.`,
         conflictingEvent: {
           id: ev.id,
           title: ev.title,
@@ -168,9 +169,10 @@ export async function findNextAvailableSlots(
     // Skip weekly off days
     const weeklyOffDays = config.weeklyOffDays || [0];
     if (weeklyOffDays.includes(candidateParts.dayOfWeek)) {
-      // Jump to next day at office start hour
-      candidate.setDate(candidate.getDate() + 1);
-      candidate.setHours(config.startHour, config.startMinute || 0, 0, 0);
+      // Jump to next day at office start hour in IST
+      const nextDay = new Date(candidate.getTime() + 24 * 60 * 60 * 1000);
+      const nextParts = getLocalTimeParts(nextDay, tz);
+      candidate = makeISTDate(nextParts.year, nextParts.month, nextParts.day, config.startHour, config.startMinute || 0);
       continue;
     }
 
@@ -183,20 +185,21 @@ export async function findNextAvailableSlots(
 
     // If candidate starts before office start, jump to office start
     if (startMins < officeStartMins) {
-      candidate.setHours(config.startHour, config.startMinute || 0, 0, 0);
+      candidate = makeISTDate(candidateParts.year, candidateParts.month, candidateParts.day, config.startHour, config.startMinute || 0);
       continue;
     }
 
     // If candidate ends after office end, jump to next day
     if (endMins > officeEndMins) {
-      candidate.setDate(candidate.getDate() + 1);
-      candidate.setHours(config.startHour, config.startMinute || 0, 0, 0);
+      const nextDay = new Date(candidate.getTime() + 24 * 60 * 60 * 1000);
+      const nextParts = getLocalTimeParts(nextDay, tz);
+      candidate = makeISTDate(nextParts.year, nextParts.month, nextParts.day, config.startHour, config.startMinute || 0);
       continue;
     }
 
     // If candidate overlaps lunch window, jump past lunch
     if (startMins < lunchEndMins && endMins > lunchStartMins) {
-      candidate.setHours(config.lunch?.endHour ?? 15, config.lunch?.endMinute ?? 0, 0, 0);
+      candidate = makeISTDate(candidateParts.year, candidateParts.month, candidateParts.day, config.lunch?.endHour ?? 15, config.lunch?.endMinute ?? 0);
       continue;
     }
 
@@ -206,7 +209,7 @@ export async function findNextAvailableSlots(
 
     let hasEventOverlap = false;
     for (const ev of existingEvents) {
-      if (['CANCELLED', 'MISSED'].includes(ev.status)) continue;
+      if (['CANCELLED', 'MISSED', 'COMPLETED'].includes(ev.status)) continue;
       const evStart = new Date(ev.startTime);
       const evTotalEnd = new Date(ev.endTime.getTime() + (ev.bufferMinutes || 0) * 60000);
       const candEnd = new Date(candidate.getTime() + totalDuration * 60000);

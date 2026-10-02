@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { checkTimeConflicts } from '@/lib/calendar/conflictProtectionEngine';
+import { parseSalesDate, formatISTTime, formatISTDateDDMMYYYY } from '@/lib/time/salesTimeEngine';
 
 export async function POST(
   request: Request,
@@ -9,11 +11,19 @@ export async function POST(
     const { id: leadId } = await params;
     const body = await request.json();
 
-    const { type, scheduledAt, notes } = body;
+    const { type, scheduledAt, notes, durationMinutes = 30, reminderLeadMinutes = 10 } = body;
 
     if (!scheduledAt) {
       return NextResponse.json(
         { success: false, error: 'Follow-up date and time are required.' },
+        { status: 400 }
+      );
+    }
+
+    const targetDate = parseSalesDate(scheduledAt);
+    if (isNaN(targetDate.getTime())) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid scheduled date format.' },
         { status: 400 }
       );
     }
@@ -23,6 +33,30 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 });
     }
 
+    const duration = Number(durationMinutes) || 30;
+    const numReminderLead = Number(reminderLeadMinutes) || 10;
+
+    // Conflict Check
+    const conflictResult = await checkTimeConflicts({
+      startTime: targetDate,
+      durationMinutes: duration,
+      userId: lead.userId,
+    });
+
+    if (conflictResult.hasConflict) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: conflictResult.message || 'That slot is already booked.',
+          conflict: conflictResult,
+        },
+        { status: 409 }
+      );
+    }
+
+    const userNote = notes?.trim() || '';
+    const noteWithDuration = `[duration:${duration}] ${userNote || `${type || 'Follow-up'} with ${lead.title}`}`;
+
     const result = await prisma.$transaction(async (tx) => {
       const followUp = await tx.followUp.create({
         data: {
@@ -30,8 +64,8 @@ export async function POST(
           userId: lead.userId,
           type: type || 'CALL',
           status: 'PENDING',
-          scheduledAt: new Date(scheduledAt),
-          notes: notes?.trim() || null,
+          scheduledAt: targetDate,
+          notes: noteWithDuration,
         },
       });
 
@@ -40,12 +74,10 @@ export async function POST(
           userId: lead.userId,
           leadId,
           type: 'FOLLOW_UP_SET',
-          title: 'Follow-up Scheduled',
-          description: `Follow-up set for ${new Date(scheduledAt).toLocaleString()} (${type || 'CALL'})`,
+          title: `FOLLOW-UP SCHEDULED: ${formatISTDateDDMMYYYY(targetDate)} ${formatISTTime(targetDate)}`,
+          description: userNote ? `${type || 'Follow-up'}: ${userNote}` : `${type || 'Follow-up'} with ${lead.title} scheduled for ${formatISTTime(targetDate)}`,
         },
       });
-
-      const targetDate = new Date(scheduledAt);
 
       await tx.lead.update({
         where: { id: leadId },
@@ -54,13 +86,13 @@ export async function POST(
         },
       });
 
-      const remindAt = new Date(targetDate.getTime() - 10 * 60000);
+      const remindAt = new Date(targetDate.getTime() - numReminderLead * 60000);
       await tx.reminder.create({
         data: {
           userId: lead.userId,
           leadId,
           title: `⏰ Reminder: ${type || 'Follow-up'} with ${lead.title}`,
-          message: notes?.trim() || `Follow-up scheduled for ${targetDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`,
+          message: userNote || `Follow-up scheduled for ${formatISTTime(targetDate)}`,
           remindAt: remindAt > new Date() ? remindAt : new Date(Date.now() + 60000),
           entityId: followUp.id,
           entityType: 'FOLLOW_UP',

@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { checkTimeConflicts } from '@/lib/calendar/conflictProtectionEngine';
 
+import { parseSalesDate, isSlotInPast } from '@/lib/time/salesTimeEngine';
+
 export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
     const body = await req.json();
-    const { action, sourceEntity, newStartTime, durationMinutes = 30, bufferMinutes = 10, notes } = body;
+    const { action, sourceEntity, newStartTime, durationMinutes = 30, bufferMinutes = 0, notes } = body;
 
     // Remove prefix if present (e.g., demo-uuid -> uuid)
     const rawId = id.includes('-') ? id.split('-').slice(1).join('-') : id;
@@ -22,7 +24,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         );
       }
 
-      const reschStart = new Date(newStartTime);
+      const reschStart = parseSalesDate(newStartTime);
       if (isNaN(reschStart.getTime())) {
         return NextResponse.json(
           { success: false, error: 'Invalid new start time.' },
@@ -30,11 +32,21 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         );
       }
 
+      if (isSlotInPast(reschStart)) {
+        return NextResponse.json(
+          { success: false, error: 'That slot has already passed.' },
+          { status: 400 }
+        );
+      }
+
+      const numDuration = Number(durationMinutes) || 30;
+      const numBuffer = Number(bufferMinutes) || 0;
+
       // Re-check conflict for new time slot!
       const conflictResult = await checkTimeConflicts({
         startTime: reschStart,
-        durationMinutes: Number(durationMinutes),
-        bufferMinutes: Number(bufferMinutes),
+        durationMinutes: numDuration,
+        bufferMinutes: numBuffer,
         excludeEntityId: rawId,
         userId,
       });
@@ -50,29 +62,45 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         );
       }
 
-      const reschEnd = new Date(reschStart.getTime() + Number(durationMinutes) * 60000);
+      const reschEnd = new Date(reschStart.getTime() + numDuration * 60000);
 
       // Perform update inside transaction
       await prisma.$transaction(async (tx) => {
         if (sourceEntity === 'DEMO') {
-          await tx.demo.update({
+          const updatedDemo = await tx.demo.update({
             where: { id: rawId },
             data: {
               scheduledAt: reschStart,
-              durationMinutes: Number(durationMinutes),
+              durationMinutes: numDuration,
               status: 'SCHEDULED',
               ...(notes ? { notes } : {}),
             },
           });
+          if (updatedDemo.leadId) {
+            await tx.lead.update({
+              where: { id: updatedDemo.leadId },
+              data: { nextActionDate: reschStart },
+            });
+          }
         } else if (sourceEntity === 'FOLLOW_UP') {
-          await tx.followUp.update({
+          const fu = await tx.followUp.findUnique({ where: { id: rawId } });
+          const userNote = notes || (fu?.notes ? fu.notes.replace(/\[duration:\d+\]\s*/gi, '').trim() : '');
+          const newNotes = `[duration:${numDuration}] ${userNote}`;
+
+          const updatedFu = await tx.followUp.update({
             where: { id: rawId },
             data: {
               scheduledAt: reschStart,
               status: 'PENDING',
-              ...(notes ? { notes } : {}),
+              notes: newNotes,
             },
           });
+          if (updatedFu.leadId) {
+            await tx.lead.update({
+              where: { id: updatedFu.leadId },
+              data: { nextActionDate: reschStart },
+            });
+          }
         } else if (sourceEntity === 'TASK') {
           await tx.task.update({
             where: { id: rawId },
@@ -90,6 +118,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
               endTime: reschEnd,
               status: 'ACTIVE',
               ...(notes ? { notes } : {}),
+              metadata: JSON.stringify({ bufferMinutes: numBuffer, durationMinutes: numDuration }),
             },
           });
         }

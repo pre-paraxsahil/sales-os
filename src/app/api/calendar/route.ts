@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getWorkHoursConfig } from '@/lib/schedule/scheduleConfig';
-import { getStartAndEndOfDay, getTodayDateString } from '@/lib/time/salesTimeEngine';
+import { getStartAndEndOfDay, getTodayDateString, makeISTDate, parseSalesDate } from '@/lib/time/salesTimeEngine';
 import { getUnifiedCalendarEvents, calculateDayCapacity } from '@/lib/calendar/salesCalendarEngine';
 
 export const dynamic = 'force-dynamic';
@@ -21,10 +21,7 @@ export async function GET(req: NextRequest) {
 
     let targetDate = new Date();
     if (dateParam) {
-      const [y, m, d] = dateParam.split('-').map((v) => parseInt(v, 10));
-      if (y && m && d) {
-        targetDate = new Date(y, m - 1, d, 12, 0, 0);
-      }
+      targetDate = parseSalesDate(dateParam, null, tz);
     } else if (viewParam === 'TOMORROW') {
       targetDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
     }
@@ -44,10 +41,15 @@ export async function GET(req: NextRequest) {
       endDate = end;
     }
 
-    const [events, capacity] = await Promise.all([
-      getUnifiedCalendarEvents(startDate, endDate, userId),
-      calculateDayCapacity(targetDate, userId),
-    ]);
+    const events = await getUnifiedCalendarEvents(startDate, endDate, userId);
+    const dayEvents = viewParam === 'WEEK'
+      ? events.filter((e) => {
+          const { start, end } = getStartAndEndOfDay(targetDate, tz);
+          return e.startTime >= start && e.startTime <= end;
+        })
+      : events;
+
+    const capacity = await calculateDayCapacity(targetDate, userId, dayEvents);
 
     // Extract missed events across the system
     const now = new Date();

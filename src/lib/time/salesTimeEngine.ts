@@ -2,6 +2,363 @@ import { WorkHoursConfig, DefaultBlockDefinition } from '@/lib/schedule/types';
 import { DEFAULT_WORK_HOURS_CONFIG, DEFAULT_SALES_BLOCKS } from '@/lib/schedule/scheduleConfig';
 
 export const DEFAULT_TIMEZONE = 'Asia/Kolkata';
+export const BUSINESS_TIMEZONE = 'Asia/Kolkata';
+
+/**
+ * Creates a Date object representing an exact instant in Asia/Kolkata (IST, UTC+05:30).
+ */
+export function makeISTDate(year: number, month: number, day: number, hour: number = 0, minute: number = 0, second: number = 0): Date {
+  const yStr = String(year);
+  const mStr = String(month).padStart(2, '0');
+  const dStr = String(day).padStart(2, '0');
+  const hStr = String(hour).padStart(2, '0');
+  const minStr = String(minute).padStart(2, '0');
+  const secStr = String(second).padStart(2, '0');
+  return new Date(`${yStr}-${mStr}-${dStr}T${hStr}:${minStr}:${secStr}.000+05:30`);
+}
+
+/**
+ * Returns current business Date/time in Asia/Kolkata timezone.
+ */
+export function getNowInIST(tz: string = BUSINESS_TIMEZONE): Date {
+  const parts = getLocalTimeParts(new Date(), tz);
+  return makeISTDate(parts.year, parts.month, parts.day, parts.hour, parts.minute, parts.second);
+}
+
+/**
+ * Centralized parser for Indian (DD/MM/YYYY), ISO (YYYY-MM-DD), and relative date strings in Asia/Kolkata (IST).
+ * 
+ * Rules:
+ * - DD/MM/YYYY: 02/10/2026 = 2 October 2026. 12/10/2026 = 12 October 2026. 10/02/2026 = 10 February 2026.
+ * - DD-MM-YYYY: 02-10-2026 = 2 October 2026.
+ * - YYYY-MM-DD: Standard HTML5 input date format.
+ * - Relative shortcuts: "today", "tomorrow", "4 days", "10 days", "next week".
+ * - Time: "16:30", "4:30 PM", "04:30 PM", "4:30pm".
+ */
+/**
+ * Parses time strings in 12-hour (e.g. "4:30 PM", "4:30pm", "4 PM") or 24-hour ("16:30", "16:30:00", "00:00") format.
+ */
+export function parseTimeString(tStr: string): { hour: number; minute: number; second: number } | null {
+  const trimmed = tStr.trim();
+  if (!trimmed) return null;
+
+  // 1. Matches "4:30 PM", "04:30 PM", "4:30:15 PM", "4:30pm", "4 PM", "12 AM", "12 PM"
+  const ampmMatch = trimmed.match(/^(\d{1,2})(?:[:.](\d{2}))?(?::(\d{2}))?\s*([AaPp][Mm])$/i);
+  if (ampmMatch) {
+    let h = parseInt(ampmMatch[1], 10);
+    const m = ampmMatch[2] ? parseInt(ampmMatch[2], 10) : 0;
+    const s = ampmMatch[3] ? parseInt(ampmMatch[3], 10) : 0;
+    const meridiem = ampmMatch[4].toUpperCase();
+    if (meridiem === 'PM' && h < 12) h += 12;
+    if (meridiem === 'AM' && h === 12) h = 0;
+    return { hour: h, minute: m, second: s };
+  }
+
+  // 2. Matches "16:30", "16:30:00", "09:15", "9:00", "00:00:00"
+  const colonMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (colonMatch) {
+    const h = parseInt(colonMatch[1], 10);
+    const m = parseInt(colonMatch[2], 10);
+    const s = colonMatch[3] ? parseInt(colonMatch[3], 10) : 0;
+    if (!isNaN(h) && !isNaN(m)) {
+      return { hour: h, minute: m, second: s };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Determines whether a given slot instant has already passed relative to the current instant,
+ * with a business clock skew grace window (default 2 minutes).
+ */
+export function isSlotInPast(
+  slotDate: Date,
+  currentInstant: Date = new Date(),
+  skewGraceMs: number = 2 * 60000
+): boolean {
+  return slotDate.getTime() < currentInstant.getTime() - skewGraceMs;
+}
+
+/**
+ * Centralized parser for Indian (DD/MM/YYYY), ISO (YYYY-MM-DD), and relative date strings in Asia/Kolkata (IST).
+ * 
+ * Rules:
+ * - DD/MM/YYYY: 02/10/2026 = 2 October 2026. 12/10/2026 = 12 October 2026. 10/02/2026 = 10 February 2026.
+ * - DD-MM-YYYY: 02-10-2026 = 2 October 2026.
+ * - YYYY-MM-DD: Standard HTML5 input date format.
+ * - Relative shortcuts: "today", "tomorrow", "yesterday", "4 days", "10 days", "next week".
+ * - Time: "16:30", "4:30 PM", "04:30 PM", "4:30pm", "4 PM".
+ * - Full ISO timestamps: "2026-10-02T11:00:00.000Z" (converted to IST instant).
+ */
+export function parseSalesDate(
+  dateInput: string | Date,
+  timeInput?: string | null,
+  tz: string = BUSINESS_TIMEZONE
+): Date {
+  const now = new Date();
+  const nowParts = getLocalTimeParts(now, tz);
+
+  let year = nowParts.year;
+  let month = nowParts.month;
+  let day = nowParts.day;
+  let hour = 10; // Default sales business start hour
+  let minute = 0;
+  let second = 0;
+  let timeExplicitlySet = false;
+
+  // 1. Process explicit timeInput if provided
+  if (timeInput && timeInput.trim()) {
+    const parsedTime = parseTimeString(timeInput);
+    if (parsedTime) {
+      hour = parsedTime.hour;
+      minute = parsedTime.minute;
+      second = parsedTime.second;
+      timeExplicitlySet = true;
+    }
+  }
+
+  // 2. If dateInput is a Date object
+  if (dateInput instanceof Date) {
+    if (isNaN(dateInput.getTime())) return new Date(NaN);
+    const parts = getLocalTimeParts(dateInput, tz);
+    year = parts.year;
+    month = parts.month;
+    day = parts.day;
+    if (!timeExplicitlySet) {
+      hour = parts.hour;
+      minute = parts.minute;
+      second = parts.second;
+    }
+    return makeISTDate(year, month, day, hour, minute, second);
+  }
+
+  // 3. If dateInput is a string
+  if (typeof dateInput === 'string') {
+    const raw = dateInput.trim();
+    const lower = raw.toLowerCase();
+
+    // A. Relative shortcuts: "today", "tomorrow", "yesterday", "next week", "+4 days", "+10 days", etc.
+    if (lower === 'today') {
+      year = nowParts.year;
+      month = nowParts.month;
+      day = nowParts.day;
+    } else if (lower === 'tomorrow') {
+      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      const parts = getLocalTimeParts(tomorrow, tz);
+      year = parts.year;
+      month = parts.month;
+      day = parts.day;
+    } else if (lower === 'yesterday') {
+      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const parts = getLocalTimeParts(yesterday, tz);
+      year = parts.year;
+      month = parts.month;
+      day = parts.day;
+    } else if (lower.includes('next week')) {
+      const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const parts = getLocalTimeParts(nextWeek, tz);
+      year = parts.year;
+      month = parts.month;
+      day = parts.day;
+    } else if (/^(\+)?(\d+)\s*(days?|d)?(\s*later|\s*from\s*now)?$/i.test(lower)) {
+      const match = lower.match(/^(\+)?(\d+)/);
+      const daysToAdd = match ? parseInt(match[2], 10) : 0;
+      const target = new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+      const parts = getLocalTimeParts(target, tz);
+      year = parts.year;
+      month = parts.month;
+      day = parts.day;
+    }
+    // B. ISO 8601 strings containing 'T' (e.g. "2026-10-02T11:00:00.000Z", "2026-10-02T16:30:00+05:30", "2026-10-02T16:30:00")
+    else if (raw.includes('T')) {
+      const hasTzIndicator =
+        raw.endsWith('Z') ||
+        raw.endsWith('z') ||
+        /[+-]\d{2}(?::?\d{2})?$/.test(raw);
+
+      if (hasTzIndicator) {
+        // Absolute instant with explicit UTC or offset
+        const parsedIso = new Date(raw);
+        if (!isNaN(parsedIso.getTime())) {
+          const parts = getLocalTimeParts(parsedIso, tz);
+          year = parts.year;
+          month = parts.month;
+          day = parts.day;
+          if (!timeExplicitlySet) {
+            hour = parts.hour;
+            minute = parts.minute;
+            second = parts.second;
+          }
+          return makeISTDate(year, month, day, hour, minute, second);
+        }
+      }
+
+      // ISO format without explicit timezone offset (e.g. "2026-10-02T16:30:00" or "2026-10-02T16:30")
+      // In business logic, this represents Asia/Kolkata wall-clock time
+      const [datePart, timePart] = raw.split('T');
+      const segs = datePart.split('-').map((s) => parseInt(s.trim(), 10));
+      if (segs.length === 3) {
+        if (segs[0] > 1000) {
+          year = segs[0];
+          month = segs[1];
+          day = segs[2];
+        } else {
+          day = segs[0];
+          month = segs[1];
+          year = segs[2] < 100 ? 2000 + segs[2] : segs[2];
+        }
+      }
+      if (!timeExplicitlySet && timePart) {
+        const cleanTime = timePart.split('.')[0].replace(/Z$/i, '');
+        const parsedT = parseTimeString(cleanTime);
+        if (parsedT) {
+          hour = parsedT.hour;
+          minute = parsedT.minute;
+          second = parsedT.second;
+        }
+      }
+      return makeISTDate(year, month, day, hour, minute, second);
+    }
+    // C. Non-ISO strings (Indian DD/MM/YYYY, YYYY-MM-DD, with or without space-delimited time)
+    else {
+      let datePart = raw;
+      const firstSpaceIdx = raw.indexOf(' ');
+      if (firstSpaceIdx > 0) {
+        const candidateDate = raw.slice(0, firstSpaceIdx).trim();
+        const candidateTime = raw.slice(firstSpaceIdx + 1).trim();
+        // If candidateDate looks like DD/MM/YYYY, DD-MM-YYYY, or YYYY-MM-DD
+        if (/^\d{1,4}[/-]\d{1,2}[/-]\d{1,4}$/.test(candidateDate)) {
+          datePart = candidateDate;
+          if (!timeExplicitlySet) {
+            const parsedT = parseTimeString(candidateTime);
+            if (parsedT) {
+              hour = parsedT.hour;
+              minute = parsedT.minute;
+              second = parsedT.second;
+            }
+          }
+        }
+      }
+
+      if (datePart.includes('/')) {
+        // Indian DD/MM/YYYY format:
+        // 02/10/2026 = 2 October 2026
+        // 12/10/2026 = 12 October 2026
+        // 10/02/2026 = 10 February 2026
+        const parts = datePart.split('/').map((s) => parseInt(s.trim(), 10));
+        if (parts.length === 3) {
+          day = parts[0];
+          month = parts[1];
+          year = parts[2] < 100 ? 2000 + parts[2] : parts[2];
+        }
+      } else if (datePart.includes('-')) {
+        const segs = datePart.split('-').map((s) => parseInt(s.trim(), 10));
+        if (segs.length === 3) {
+          if (segs[0] > 1000) {
+            // YYYY-MM-DD
+            year = segs[0];
+            month = segs[1];
+            day = segs[2];
+          } else {
+            // DD-MM-YYYY
+            day = segs[0];
+            month = segs[1];
+            year = segs[2] < 100 ? 2000 + segs[2] : segs[2];
+          }
+        }
+      } else {
+        // Fallback: standard Date parse
+        const parsed = new Date(raw);
+        if (!isNaN(parsed.getTime())) {
+          const parts = getLocalTimeParts(parsed, tz);
+          year = parts.year;
+          month = parts.month;
+          day = parts.day;
+          if (!timeExplicitlySet) {
+            hour = parts.hour;
+            minute = parts.minute;
+            second = parts.second;
+          }
+        }
+      }
+    }
+  }
+
+  return makeISTDate(year, month, day, hour, minute, second);
+}
+
+/**
+ * Converts frontend date pickers ("YYYY-MM-DD" or "DD/MM/YYYY") and time pickers directly to
+ * an Asia/Kolkata (IST) Date instance, immune to browser or server local timezone shifts.
+ */
+export function parseISTDateStringAndTime(dateString: string, timeString: string): Date {
+  return parseSalesDate(dateString, timeString);
+}
+
+/**
+ * Formats a Date object into standard Indian date display: DD/MM/YYYY (e.g. "02/10/2026").
+ */
+export function formatISTDateDDMMYYYY(date: Date): string {
+  const parts = getLocalTimeParts(date, BUSINESS_TIMEZONE);
+  const dStr = String(parts.day).padStart(2, '0');
+  const mStr = String(parts.month).padStart(2, '0');
+  return `${dStr}/${mStr}/${parts.year}`;
+}
+
+/**
+ * Formats a Date object into 12-hour IST time string with AM/PM (e.g. "4:30 PM").
+ */
+export function formatISTTime(date: Date): string {
+  return date.toLocaleTimeString('en-IN', {
+    timeZone: BUSINESS_TIMEZONE,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+/**
+ * Formats a Date object into full Indian date and time (e.g. "02/10/2026 4:30 PM").
+ */
+export function formatISTDateTime(date: Date): string {
+  return `${formatISTDateDDMMYYYY(date)} ${formatISTTime(date)}`;
+}
+
+/**
+ * Formats a Date object into IST date display string with day name (e.g. "Fri, 2 Oct 2026").
+ */
+export function formatISTDate(date: Date): string {
+  return date.toLocaleDateString('en-IN', {
+    timeZone: BUSINESS_TIMEZONE,
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+/**
+ * Formats relative human-readable context for future/past sales commitments.
+ * Examples: "Today", "Tomorrow", "10 days from now", "Due in 4 days", "Yesterday".
+ */
+export function formatRelativeTimeUntil(targetDate: Date, baseDate: Date = new Date(), tz: string = BUSINESS_TIMEZONE): string {
+  const targetParts = getLocalTimeParts(targetDate, tz);
+  const baseParts = getLocalTimeParts(baseDate, tz);
+
+  // Compare calendar days in IST
+  const targetMidnight = new Date(`${targetParts.year}-${String(targetParts.month).padStart(2, '0')}-${String(targetParts.day).padStart(2, '0')}T00:00:00.000+05:30`).getTime();
+  const baseMidnight = new Date(`${baseParts.year}-${String(baseParts.month).padStart(2, '0')}-${String(baseParts.day).padStart(2, '0')}T00:00:00.000+05:30`).getTime();
+
+  const diffDays = Math.round((targetMidnight - baseMidnight) / (24 * 60 * 60 * 1000));
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Tomorrow';
+  if (diffDays === -1) return 'Yesterday';
+  if (diffDays > 1 && diffDays <= 7) return `Due in ${diffDays} days`;
+  if (diffDays > 7) return `${diffDays} days from now`;
+  return `${Math.abs(diffDays)} days ago`;
+}
 
 export interface LocalTimeParts {
   year: number;

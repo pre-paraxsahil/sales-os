@@ -21,6 +21,14 @@ import {
   Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  getTodayDateString,
+  parseISTDateStringAndTime,
+  formatISTDateDDMMYYYY,
+  formatISTTime,
+  formatRelativeTimeUntil,
+  parseSalesDate,
+} from '@/lib/time/salesTimeEngine';
 
 interface LeadOption {
   id: string;
@@ -36,6 +44,8 @@ interface BookTimeModalProps {
   onSuccess: () => void;
   initialTime?: string | null;
   initialDate?: string | null;
+  initialLead?: LeadOption | null;
+  initialLeadId?: string | null;
   onOpenSlotFinder?: () => void;
 }
 
@@ -54,19 +64,21 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
   onSuccess,
   initialTime,
   initialDate,
+  initialLead,
+  initialLeadId,
   onOpenSlotFinder,
 }) => {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
 
   // Form State
   const [activityType, setActivityType] = useState<string>('CALL');
-  const [selectedLead, setSelectedLead] = useState<LeadOption | null>(null);
+  const [selectedLead, setSelectedLead] = useState<LeadOption | null>(initialLead || null);
   const [leadSearchQuery, setLeadSearchQuery] = useState<string>('');
   const [leadSearchResults, setLeadSearchResults] = useState<LeadOption[]>([]);
   const [searchingLeads, setSearchingLeads] = useState<boolean>(false);
 
   const [dateString, setDateString] = useState<string>(
-    initialDate || new Date().toISOString().split('T')[0]
+    initialDate || getTodayDateString()
   );
   const [timeString, setTimeString] = useState<string>(initialTime || '11:00');
   const [durationMinutes, setDurationMinutes] = useState<number>(30);
@@ -83,16 +95,34 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
     if (isOpen) {
       setStep(1);
       setActivityType('CALL');
-      setSelectedLead(null);
-      setDateString(initialDate || new Date().toISOString().split('T')[0]);
+      setSelectedLead(initialLead || null);
+      setDateString(initialDate || getTodayDateString());
       setTimeString(initialTime || '11:00');
       setDurationMinutes(30);
       setReminderLeadMinutes(10);
       setNotes('');
       setConflictError(null);
       setConflictingTimeRange(null);
+
+      if (initialLeadId && !initialLead) {
+        fetch(`/api/leads/${initialLeadId}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            const l = data?.lead || data?.data;
+            if (l) {
+              setSelectedLead({
+                id: l.id,
+                title: l.title,
+                contactName: l.contact?.name,
+                businessName: l.business?.name,
+                phone: l.contact?.phone || l.phone,
+              });
+            }
+          })
+          .catch((err) => console.error('Error fetching initial lead:', err));
+      }
     }
-  }, [isOpen, initialDate, initialTime]);
+  }, [isOpen, initialDate, initialTime, initialLead, initialLeadId]);
 
   // Lead search debounce
   useEffect(() => {
@@ -126,14 +156,14 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
       setConflictError(null);
       setConflictingTimeRange(null);
 
-      const [y, mon, d] = dateString.split('-').map((v) => parseInt(v, 10));
-      const [h, m] = timeString.split(':').map((v) => parseInt(v, 10));
-      const startObj = new Date(y, mon - 1, d, h, m, 0, 0);
+      const startObj = parseISTDateStringAndTime(dateString, timeString);
 
       const payload = {
         activityType,
         leadId: selectedLead?.id || null,
         startTime: startObj.toISOString(),
+        dateString,
+        timeString,
         durationMinutes,
         reminderLeadMinutes,
         notes,
@@ -167,7 +197,7 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
     } catch (err: any) {
       console.error('Error submitting booking:', err);
       setConflictError(err.message || 'Server connection error.');
-    } fontally: {
+    } finally {
       setSubmitting(false);
     }
   };
@@ -325,6 +355,44 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
                 Step 3: Select Date, Time & Duration
               </label>
 
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700">Quick Date Shortcuts</span>
+                  {dateString && (
+                    <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md font-mono">
+                      {formatISTDateDDMMYYYY(parseSalesDate(dateString))} ({formatRelativeTimeUntil(parseSalesDate(dateString))})
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: 'Today', getVal: () => getTodayDateString(new Date()) },
+                    { label: 'Tomorrow', getVal: () => getTodayDateString(new Date(Date.now() + 24 * 60 * 60 * 1000)) },
+                    { label: '+4 days', getVal: () => getTodayDateString(new Date(Date.now() + 4 * 24 * 60 * 60 * 1000)) },
+                    { label: '+10 days', getVal: () => getTodayDateString(new Date(Date.now() + 10 * 24 * 60 * 60 * 1000)) },
+                    { label: 'Next week', getVal: () => getTodayDateString(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)) },
+                  ].map((sc) => {
+                    const scVal = sc.getVal();
+                    const isSelected = dateString === scVal;
+                    return (
+                      <button
+                        key={sc.label}
+                        type="button"
+                        onClick={() => setDateString(scVal)}
+                        className={cn(
+                          'px-2.5 py-1 text-xs font-bold rounded-lg border transition-all',
+                          isSelected
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        )}
+                      >
+                        {sc.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">Date</label>
@@ -436,8 +504,11 @@ export const BookTimeModal: React.FC<BookTimeModalProps> = ({
                 </div>
                 <div className="flex justify-between border-b border-slate-200/80 pb-2">
                   <span className="text-slate-500">Date & Time:</span>
-                  <span className="font-bold text-slate-900">
-                    {dateString} at {timeString} ({durationMinutes} mins)
+                  <span className="font-bold text-slate-900 font-mono">
+                    {(() => {
+                      const dt = parseISTDateStringAndTime(dateString, timeString);
+                      return `${formatISTDateDDMMYYYY(dt)} at ${formatISTTime(dt)} (${formatRelativeTimeUntil(dt)}) — ${durationMinutes} mins`;
+                    })()}
                   </span>
                 </div>
                 <div className="flex justify-between">

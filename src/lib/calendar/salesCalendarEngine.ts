@@ -249,11 +249,16 @@ export async function getUnifiedCalendarEvents(
   // Process FollowUps
   for (const fu of followUps) {
     const startTime = new Date(fu.scheduledAt);
-    const duration = 15; // default follow-up duration
+    let duration = 30; // standard sales follow-up/callback booking duration
+    if (fu.notes) {
+      const match = fu.notes.match(/\[duration:(\d+)\]/i);
+      if (match) duration = parseInt(match[1], 10);
+    }
     const endTime = new Date(startTime.getTime() + duration * 60000);
     const status = resolveEventStatus(fu.status, startTime, endTime, now);
     const linkedReminder = reminderMap.get(fu.id);
     const actType = normalizeActivityType(fu.type);
+    const displayNotes = fu.notes ? fu.notes.replace(/\[duration:\d+\]\s*/gi, '').trim() : null;
 
     events.push({
       id: `followup-${fu.id}`,
@@ -262,7 +267,7 @@ export async function getUnifiedCalendarEvents(
       startTime,
       endTime,
       durationMinutes: duration,
-      bufferMinutes: 5,
+      bufferMinutes: 0,
       status,
       sourceEntity: 'FOLLOW_UP',
       entityId: fu.id,
@@ -277,7 +282,7 @@ export async function getUnifiedCalendarEvents(
             status: fu.lead.status,
           }
         : null,
-      notes: fu.notes,
+      notes: displayNotes || fu.notes,
       reminder: linkedReminder
         ? {
             id: linkedReminder.id,
@@ -406,12 +411,13 @@ export async function getUnifiedCalendarEvents(
  */
 export async function calculateDayCapacity(
   date: Date = new Date(),
-  userId?: string | null
+  userId?: string | null,
+  preloadedEvents?: CalendarEvent[]
 ): Promise<DayCapacityStats> {
   const config = await getWorkHoursConfig(userId);
   const tz = config.timezone || DEFAULT_TIMEZONE;
   const { start, end } = getStartAndEndOfDay(date, tz);
-  const events = await getUnifiedCalendarEvents(start, end, userId);
+  const events = preloadedEvents || (await getUnifiedCalendarEvents(start, end, userId));
 
   // Office total available minutes (e.g. 10:00 to 18:00 = 480 mins, minus lunch 60 mins = 420 mins)
   const officeStartMins = config.startHour * 60 + (config.startMinute || 0);
@@ -484,9 +490,11 @@ export async function calculateDayCapacity(
     // Sum booked & buffer time for remaining active/scheduled events today
     for (const ev of events) {
       if (ev.type === 'LUNCH' || ev.status === 'CANCELLED' || ev.status === 'COMPLETED') continue;
-      const evEndMins = ev.endTime.getHours() * 60 + ev.endTime.getMinutes() + (ev.bufferMinutes || 0);
+      const evEndParts = getLocalTimeParts(ev.endTime, tz);
+      const evEndMins = evEndParts.hour * 60 + evEndParts.minute + (ev.bufferMinutes || 0);
       if (evEndMins > currentMins) {
-        const evStartMins = ev.startTime.getHours() * 60 + ev.startTime.getMinutes();
+        const evStartParts = getLocalTimeParts(ev.startTime, tz);
+        const evStartMins = evStartParts.hour * 60 + evStartParts.minute;
         const effectiveStart = Math.max(currentMins, evStartMins);
         const effectiveEnd = Math.min(officeEndMins, evEndMins);
         if (effectiveEnd > effectiveStart) {

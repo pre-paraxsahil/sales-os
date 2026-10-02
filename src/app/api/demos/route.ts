@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkTimeConflicts } from "@/lib/calendar/conflictProtectionEngine";
+import { parseSalesDate } from "@/lib/time/salesTimeEngine";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -58,7 +60,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const demoScheduledAt = new Date(scheduledAt);
+    const demoScheduledAt = parseSalesDate(scheduledAt);
     if (isNaN(demoScheduledAt.getTime())) {
       return NextResponse.json(
         { success: false, error: "Invalid scheduledAt date format." },
@@ -79,6 +81,25 @@ export async function POST(req: NextRequest) {
     }
 
     const duration = durationMinutes ? parseInt(String(durationMinutes), 10) : 30;
+
+    // Check conflict
+    const conflictResult = await checkTimeConflicts({
+      startTime: demoScheduledAt,
+      durationMinutes: duration,
+      userId: lead.userId,
+    });
+
+    if (conflictResult.hasConflict) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: conflictResult.message || "That slot is already booked.",
+          conflict: conflictResult,
+        },
+        { status: 409 }
+      );
+    }
+
     const endTime = new Date(demoScheduledAt.getTime() + duration * 60000);
     const leadContactName = lead.contact?.name;
     const leadBizName = lead.business?.name;

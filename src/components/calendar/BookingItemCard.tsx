@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { CalendarEvent, CalendarActivityType } from '@/lib/calendar/salesCalendarEngine';
 import { cn } from '@/lib/utils';
+import { formatISTTime, formatRelativeTimeUntil } from '@/lib/time/salesTimeEngine';
 
 interface BookingItemCardProps {
   event: CalendarEvent;
@@ -124,15 +125,15 @@ export const BookingItemCard: React.FC<BookingItemCardProps> = ({
   const style = getActivityStyle(event.type);
   const Icon = style.icon;
 
-  const formatTime = (d: Date) =>
-    new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-  const startTimeStr = formatTime(event.startTime);
-  const endTimeStr = formatTime(event.endTime);
+  const startTimeStr = formatISTTime(new Date(event.startTime));
+  const endTimeStr = formatISTTime(new Date(event.endTime));
+  const relativeTimeStr = formatRelativeTimeUntil(new Date(event.startTime));
 
   const isCompleted = event.status === 'COMPLETED';
   const isMissed = event.status === 'MISSED';
   const isInProgress = event.status === 'IN_PROGRESS';
+  const isCancelled = event.status === 'CANCELLED';
+  const isScheduled = event.status === 'SCHEDULED';
 
   if (event.type === 'LUNCH') {
     return (
@@ -154,18 +155,19 @@ export const BookingItemCard: React.FC<BookingItemCardProps> = ({
         'group bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-2xs hover:shadow-xs transition-all flex flex-col md:flex-row md:items-center justify-between gap-3',
         style.cardBorder,
         isCompleted && 'opacity-65 bg-slate-50/50',
-        isMissed && 'border-rose-300 bg-rose-50/20'
+        isMissed && 'border-rose-300 bg-rose-50/20',
+        isCancelled && 'opacity-50 bg-slate-50 line-through'
       )}
     >
       {/* Event Details Left */}
       <div className="flex items-start gap-3 flex-1 min-w-0">
         {/* Time Badge */}
         <div className="shrink-0 text-left min-w-[100px]">
-          <div className="text-xs font-bold text-slate-900 tracking-tight flex items-center gap-1">
+          <div className="text-xs font-bold text-slate-900 tracking-tight flex items-center gap-1 font-mono">
             <Clock className="h-3.5 w-3.5 text-slate-400" />
             {startTimeStr}
           </div>
-          <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+          <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1 font-mono">
             <span>to {endTimeStr}</span>
             <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-mono">
               {event.durationMinutes}m
@@ -175,13 +177,23 @@ export const BookingItemCard: React.FC<BookingItemCardProps> = ({
 
         {/* Info Column */}
         <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-1">
+          <div className="flex flex-wrap items-center gap-1.5 mb-1">
             {/* Activity Pill */}
             <span className={cn('text-[11px] font-bold px-2.5 py-0.5 rounded-lg border', style.badgeBg)}>
               {style.label}
             </span>
 
+            {/* Relative context pill */}
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
+              {relativeTimeStr}
+            </span>
+
             {/* Status Pill */}
+            {isScheduled && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                Scheduled
+              </span>
+            )}
             {isCompleted && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 border border-emerald-200">
                 ✓ Completed
@@ -195,6 +207,11 @@ export const BookingItemCard: React.FC<BookingItemCardProps> = ({
             {isInProgress && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1 animate-pulse">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-600" /> Live Now
+              </span>
+            )}
+            {isCancelled && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-200 text-slate-600 border border-slate-300">
+                Cancelled
               </span>
             )}
           </div>

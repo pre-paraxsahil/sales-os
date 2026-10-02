@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+import { checkTimeConflicts } from '@/lib/calendar/conflictProtectionEngine';
+import { parseSalesDate, formatISTTime } from '@/lib/time/salesTimeEngine';
+
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
@@ -21,7 +24,7 @@ export async function POST(
       );
     }
 
-    const demoDate = new Date(scheduledAt);
+    const demoDate = parseSalesDate(scheduledAt);
     if (isNaN(demoDate.getTime())) {
       return NextResponse.json(
         { success: false, error: 'Invalid date and time format provided.' },
@@ -39,6 +42,25 @@ export async function POST(
     }
 
     const duration = durationMinutes ? Number(durationMinutes) : 30;
+
+    // Conflict Check
+    const conflictResult = await checkTimeConflicts({
+      startTime: demoDate,
+      durationMinutes: duration,
+      userId: lead.userId,
+    });
+
+    if (conflictResult.hasConflict) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: conflictResult.message || 'That slot is already booked.',
+          conflict: conflictResult,
+        },
+        { status: 409 }
+      );
+    }
+
     const endTime = new Date(demoDate.getTime() + duration * 60000);
     const demoTitle = title || `Demo: ${lead.business?.name || lead.contact?.name || lead.title}`;
 

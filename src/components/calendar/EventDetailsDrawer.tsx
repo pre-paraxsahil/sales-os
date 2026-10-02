@@ -21,6 +21,14 @@ import {
 import { CalendarEvent } from '@/lib/calendar/salesCalendarEngine';
 import { getActivityStyle } from './BookingItemCard';
 import { cn } from '@/lib/utils';
+import {
+  getLocalTimeParts,
+  parseISTDateStringAndTime,
+  formatISTTime,
+  formatISTDate,
+  formatISTDateDDMMYYYY,
+  formatRelativeTimeUntil,
+} from '@/lib/time/salesTimeEngine';
 
 interface EventDetailsDrawerProps {
   event: CalendarEvent | null;
@@ -50,18 +58,13 @@ export const EventDetailsDrawer: React.FC<EventDetailsDrawerProps> = ({
   const style = getActivityStyle(event.type);
   const Icon = style.icon;
 
-  const formatTime = (d: Date) =>
-    new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-  const formatDate = (d: Date) =>
-    new Date(d).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  const formatTime = (d: Date) => formatISTTime(new Date(d));
+  const formatDate = (d: Date) => formatISTDate(new Date(d));
 
   const handleStartReschedule = () => {
-    const d = new Date(event.startTime);
-    setReschDate(d.toISOString().split('T')[0]);
-    const h = String(d.getHours()).padStart(2, '0');
-    const m = String(d.getMinutes()).padStart(2, '0');
-    setReschTime(`${h}:${m}`);
+    const parts = getLocalTimeParts(new Date(event.startTime));
+    setReschDate(parts.formattedDate);
+    setReschTime(`${String(parts.hour).padStart(2, '0')}:${String(parts.minute).padStart(2, '0')}`);
     setIsRescheduling(true);
     setErrorMsg(null);
   };
@@ -71,9 +74,7 @@ export const EventDetailsDrawer: React.FC<EventDetailsDrawerProps> = ({
       setSubmitting(true);
       setErrorMsg(null);
 
-      const [y, mon, d] = reschDate.split('-').map((v) => parseInt(v, 10));
-      const [h, m] = reschTime.split(':').map((v) => parseInt(v, 10));
-      const newStart = new Date(y, mon - 1, d, h, m, 0, 0);
+      const newStart = parseISTDateStringAndTime(reschDate, reschTime);
 
       const res = await fetch(`/api/calendar/${event.id}`, {
         method: 'PATCH',
@@ -175,7 +176,9 @@ export const EventDetailsDrawer: React.FC<EventDetailsDrawerProps> = ({
               <span className="text-slate-500 flex items-center gap-1.5">
                 <CalendarIcon className="h-3.5 w-3.5 text-slate-400" /> Date
               </span>
-              <span className="font-bold text-slate-900">{formatDate(event.startTime)}</span>
+              <span className="font-bold text-slate-900 font-mono">
+                {formatISTDateDDMMYYYY(new Date(event.startTime))} ({formatRelativeTimeUntil(new Date(event.startTime))})
+              </span>
             </div>
 
             <div className="flex items-center justify-between">
